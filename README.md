@@ -28,9 +28,5 @@ npm install
 npm run dev
 ```
 
-### حساب Admin:
-- Email: `admin@shinonakel.com`
-- Password: `Admin@123456`
-
 ### الحالة:
 ✅ جاهز للنشر 100%
