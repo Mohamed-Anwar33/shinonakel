@@ -17,11 +17,11 @@ const Contact = () => {
   const navigate = useNavigate();
   const { language, t } = useLanguage();
   const { toast } = useToast();
-  
+
   const [selectedType, setSelectedType] = useState<ContactType>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  
+
   // Form fields
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -29,7 +29,7 @@ const Contact = () => {
   const [restaurantName, setRestaurantName] = useState("");
   const [restaurantPhone, setRestaurantPhone] = useState("");
   const [message, setMessage] = useState("");
-  
+
   // Delivery apps for restaurant form
   const [selectedDeliveryApps, setSelectedDeliveryApps] = useState<{ name: string; url: string }[]>([]);
 
@@ -64,9 +64,9 @@ const Contact = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const finalMessage = selectedType === "restaurant" ? buildRestaurantMessage() : message;
-    
+
     if (!name || !email || !phone) {
       toast({
         title: t("خطأ", "Error"),
@@ -86,7 +86,7 @@ const Contact = () => {
     }
 
     setIsSubmitting(true);
-    
+
     try {
       const { error } = await supabase.from("contact_requests").insert({
         name,
@@ -244,7 +244,7 @@ const Contact = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-center">
-                    {selectedType === "restaurant" 
+                    {selectedType === "restaurant"
                       ? t("أضف مطعمك", "Add Your Restaurant")
                       : t("أعلن معنا", "Advertise With Us")
                     }
@@ -336,11 +336,10 @@ const Contact = () => {
                                   key={app.name}
                                   type="button"
                                   onClick={() => toggleDeliveryApp(app.name)}
-                                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all border-2 ${
-                                    isSelected
+                                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all border-2 ${isSelected
                                       ? "text-white"
                                       : "bg-background text-foreground hover:opacity-80"
-                                  }`}
+                                    }`}
                                   style={{
                                     borderColor: app.color,
                                     backgroundColor: isSelected ? app.color : "transparent",
@@ -355,7 +354,7 @@ const Contact = () => {
                             <div className="space-y-2">
                               {selectedDeliveryApps.map((app) => (
                                 <div key={app.name} className="flex items-center gap-2">
-                                  <span 
+                                  <span
                                     className="text-sm font-medium min-w-[80px] text-right"
                                     style={{ color: DELIVERY_APPS.find(a => a.name === app.name)?.color }}
                                   >
@@ -411,6 +410,25 @@ const Contact = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Legal Links Footer */}
+        <div className="mt-8 pt-6 border-t border-border">
+          <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+            <button
+              onClick={() => navigate("/terms")}
+              className="hover:text-primary hover:underline transition-colors"
+            >
+              {t("شروط الاستخدام", "Terms of Service")}
+            </button>
+            <span>•</span>
+            <button
+              onClick={() => navigate("/privacy")}
+              className="hover:text-primary hover:underline transition-colors"
+            >
+              {t("سياسة الخصوصية", "Privacy Policy")}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
