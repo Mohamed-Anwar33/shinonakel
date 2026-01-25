@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, User, Eye, EyeOff } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,7 +19,9 @@ const Welcome = () => {
   const { toast } = useToast();
 
   const [mode, setMode] = useState<"welcome" | "login" | "signup" | "verify" | "forgot">("welcome");
+  const [signupMethod, setSignupMethod] = useState<"email" | "phone">("email"); // New: signup method toggle
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState(""); // New: phone number
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -91,7 +93,7 @@ const Welcome = () => {
     setLanguage(language === "ar" ? "en" : "ar");
   };
 
-  const handleEmailAuth = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (mode === "signup") {
@@ -99,6 +101,16 @@ const Welcome = () => {
       const isPasswordValid = validatePassword(password);
 
       if (!isUsernameValid || !isPasswordValid) {
+        return;
+      }
+
+      // Validate phone if using phone signup
+      if (signupMethod === "phone" && !phone.trim()) {
+        toast({
+          title: t("خطأ", "Error"),
+          description: t("يرجى إدخال رقم الهاتف", "Please enter phone number"),
+          variant: "destructive"
+        });
         return;
       }
     }
@@ -110,25 +122,91 @@ const Welcome = () => {
         await signInWithEmail(email, password, rememberMe);
         navigate("/");
       } else {
-        const { error } = await supabase.auth.signInWithOtp({
-          email,
-          options: {
-            data: {
-              username
-            }
+        // Phone signup without OTP - direct registration
+        if (signupMethod === "phone") {
+          // Check if phone number already exists
+          const { data: existingPhone, error: checkError } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("full_name", phone)
+            .maybeSingle();
+
+          if (checkError) {
+            console.error("Error checking phone:", checkError);
           }
-        });
 
-        if (error) throw error;
+          if (existingPhone) {
+            toast({
+              title: t("رقم الهاتف مسجل", "Phone already registered"),
+              description: t("هذا الرقم مستخدم بالفعل", "This number is already in use"),
+              variant: "destructive"
+            });
+            setIsLoading(false);
+            return;
+          }
 
-        sessionStorage.setItem('_temp_signup_password', password);
+          // Create account with email format from phone
+          const phoneEmail = `${phone.replace(/[^0-9]/g, '')}@phone.local`;
 
-        setPendingUsername(username);
-        setMode("verify");
-        toast({
-          title: t("تم إرسال رمز التحقق", "Verification code sent"),
-          description: t("تفقد بريدك الإلكتروني", "Check your email")
-        });
+          const { data, error } = await supabase.auth.signUp({
+            email: phoneEmail,
+            password: password,
+            options: {
+              data: {
+                username: username,
+                phone: phone
+              }
+            }
+          });
+
+          if (error) throw error;
+
+          if (data.user) {
+            // Create profile
+            const { error: profileError } = await supabase
+              .from("profiles")
+              .insert({
+                id: data.user.id,
+                username: username,
+                full_name: phone,
+                is_private: true
+              });
+
+            if (profileError && !profileError.message.includes('duplicate')) {
+              throw profileError;
+            }
+
+            // Auto login
+            await signInWithEmail(phoneEmail, password, true);
+
+            toast({
+              title: t("تم إنشاء الحساب", "Account created"),
+              description: t("مرحباً بك!", "Welcome!")
+            });
+            navigate("/");
+          }
+        } else {
+          // Email signup with OTP (existing flow)
+          const { error } = await supabase.auth.signInWithOtp({
+            email,
+            options: {
+              data: {
+                username
+              }
+            }
+          });
+
+          if (error) throw error;
+
+          sessionStorage.setItem('_temp_signup_password', password);
+
+          setPendingUsername(username);
+          setMode("verify");
+          toast({
+            title: t("تم إرسال رمز التحقق", "Verification code sent"),
+            description: t("تفقد بريدك الإلكتروني", "Check your email")
+          });
+        }
       }
     } catch (error: any) {
       toast({
@@ -355,37 +433,76 @@ const Welcome = () => {
           <motion.form
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            onSubmit={handleEmailAuth}
+            onSubmit={handleAuth}
             className="space-y-3"
           >
             {mode === "signup" && (
-              <div>
-                <Input
-                  type="text"
-                  placeholder={t("اسم المستخدم (بالإنجليزية)", "Username (English only)")}
-                  value={username}
-                  onChange={handleUsernameChange}
-                  className="h-12 text-base"
-                  dir="ltr"
-                  required
-                />
-                {usernameError && (
-                  <p className="text-destructive text-sm mt-1">{usernameError}</p>
-                )}
-                <p className="text-muted-foreground text-xs mt-1">
-                  {t("أحرف إنجليزية وأرقام فقط", "English letters and numbers only")}
-                </p>
-              </div>
+              <>
+                {/* Signup Method Toggle */}
+                <div className="flex gap-2 p-1 bg-muted rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setSignupMethod("email")}
+                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${signupMethod === "email"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                      }`}
+                  >
+                    {t("بريد إلكتروني", "Email")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSignupMethod("phone")}
+                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${signupMethod === "phone"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                      }`}
+                  >
+                    {t("رقم الهاتف", "Phone")}
+                  </button>
+                </div>
+
+                <div>
+                  <Input
+                    type="text"
+                    placeholder={t("اسم المستخدم (بالإنجليزية)", "Username (English only)")}
+                    value={username}
+                    onChange={handleUsernameChange}
+                    className="h-12 text-base"
+                    dir="ltr"
+                    required
+                  />
+                  {usernameError && (
+                    <p className="text-destructive text-sm mt-1">{usernameError}</p>
+                  )}
+                  <p className="text-muted-foreground text-xs mt-1">
+                    {t("أحرف إنجليزية وأرقام فقط", "English letters and numbers only")}
+                  </p>
+                </div>
+              </>
             )}
 
-            <Input
-              type="email"
-              placeholder={t("البريد الإلكتروني", "Email")}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="h-12 text-base"
-              required
-            />
+            {/* Email or Phone based on signup method */}
+            {mode === "signup" && signupMethod === "phone" ? (
+              <Input
+                type="tel"
+                placeholder={t("رقم الهاتف (05XXXXXXXX)", "Phone (05XXXXXXXX)")}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="h-12 text-base"
+                dir="ltr"
+                required
+              />
+            ) : (
+              <Input
+                type="email"
+                placeholder={t("البريد الإلكتروني", "Email")}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="h-12 text-base"
+                required
+              />
+            )}
 
             <div className="relative">
               <Input
@@ -476,16 +593,28 @@ const Welcome = () => {
             )}
 
             {mode === "signup" && (
-              <p className="text-center text-sm text-muted-foreground">
-                {t("لديك حساب بالفعل؟", "Already have an account?")}{" "}
-                <button
-                  type="button"
-                  onClick={() => setMode("login")}
-                  className="text-primary hover:underline"
-                >
-                  {t("تسجيل الدخول", "Sign in")}
-                </button>
-              </p>
+              <>
+                <p className="text-center text-sm text-muted-foreground">
+                  {t("لديك حساب بالفعل؟", "Already have an account?")}{" "}
+                  <button
+                    type="button"
+                    onClick={() => setMode("login")}
+                    className="text-primary hover:underline"
+                  >
+                    {t("تسجيل الدخول", "Sign in")}
+                  </button>
+                </p>
+                <p className="text-center text-xs text-muted-foreground mt-4">
+                  {t("بإنشاء حساب، أنت توافق على", "By creating an account, you agree to our")}{" "}
+                  <Link to="/terms" className="text-primary hover:underline">
+                    {t("شروط الاستخدام", "Terms of Service")}
+                  </Link>
+                  {" "}{t("و", "and")}{" "}
+                  <Link to="/privacy" className="text-primary hover:underline">
+                    {t("سياسة الخصوصية", "Privacy Policy")}
+                  </Link>
+                </p>
+              </>
             )}
           </motion.form>
         )}

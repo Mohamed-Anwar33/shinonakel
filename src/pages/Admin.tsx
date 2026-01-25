@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowRight, Plus, Trash2, CalendarIcon, Store, Megaphone, Users, MapPin, X, Upload, UserPlus, ExternalLink, Pencil, MessageCircle, Eye, Mail, Phone, CheckCircle, Clock, XCircle, FileText } from "lucide-react";
 import AdReportDialog from "@/components/AdReportDialog";
+import LegalPagesEditor from "@/components/LegalPagesEditor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { format, addDays, addWeeks, addMonths } from "date-fns";
@@ -1096,12 +1097,12 @@ const Admin = () => {
 
       <div className="p-4">
         <Tabs defaultValue="restaurants" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-5 mb-6">
             <TabsTrigger value="contacts" className="text-sm">
               الطلبات
               <MessageCircle className="w-4 h-4 mr-2 ml-2" />
             </TabsTrigger>
-            <TabsTrigger value="admins" className="text-sm">
+            <TabsTrigger value="admins" className="textسم">
               المشرفين
               <Users className="w-4 h-4 mr-2 ml-2" />
             </TabsTrigger>
@@ -1112,6 +1113,10 @@ const Admin = () => {
             <TabsTrigger value="restaurants" className="text-sm">
               المطاعم
               <Store className="w-4 h-4 mr-2 ml-2" />
+            </TabsTrigger>
+            <TabsTrigger value="legal" className="text-sm">
+              الصفحات القانونية
+              <FileText className="w-4 h-4 mr-2 ml-2" />
             </TabsTrigger>
           </TabsList>
 
@@ -1422,13 +1427,25 @@ const Admin = () => {
                           </div>
                         </div>
                         <div className="space-y-1">
-                          <Input
-                            placeholder="💡 انسخ رابط الموقع من Google Maps والصقه هنا (اختياري)"
-                            value={branch.mapsUrl}
-                            onChange={(e) => handleBranchChange(index, "mapsUrl", e.target.value)}
-                            className={`w-full text-right ${branch.mapsUrl && !isValidGoogleMapsUrl(branch.mapsUrl) ? 'border-destructive' : ''}`}
-                            dir="rtl"
-                          />
+                          <div className="flex items-center gap-2">
+                            <Input
+                              placeholder="💡 انسخ رابط الموقع من Google Maps والصقه هنا (اختياري)"
+                              value={branch.mapsUrl}
+                              onChange={(e) => handleBranchChange(index, "mapsUrl", e.target.value)}
+                              className={`w-full text-right ${branch.mapsUrl && !isValidGoogleMapsUrl(branch.mapsUrl) ? 'border-destructive' : ''}`}
+                              dir="rtl"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open('https://www.google.com/maps', '_blank')}
+                              className="shrink-0"
+                              title="فتح Google Maps للبحث"
+                            >
+                              <MapPin className="w-4 h-4" />
+                            </Button>
+                          </div>
                           {branch.mapsUrl && !isValidGoogleMapsUrl(branch.mapsUrl) && (
                             <p className="text-xs text-destructive text-right" dir="rtl">
                               ⚠️ الرابط غير صحيح - يجب أن يكون رابط Google Maps
@@ -2099,6 +2116,11 @@ const Admin = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Legal Pages Tab */}
+          <TabsContent value="legal" className="space-y-6">
+            <LegalPagesEditor />
           </TabsContent>
         </Tabs>
       </div>

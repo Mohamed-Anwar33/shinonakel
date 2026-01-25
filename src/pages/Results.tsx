@@ -479,6 +479,13 @@ const Results = () => {
           ) : (
             <span className="text-6xl animate-pulse opacity-50">🍽️</span>
           )}
+
+          {/* Cuisine Name Badge */}
+          <div className="mt-3">
+            <span className="inline-block px-6 py-2 bg-card border-2 border-border rounded-full text-lg font-bold shadow-soft">
+              {categoryDisplay}
+            </span>
+          </div>
         </div>
 
         {/* Results Content */}

@@ -63,7 +63,7 @@ const AdReportDialog = ({ open, onOpenChange, ad }: AdReportDialogProps) => {
 
   const fetchReportData = async () => {
     if (!ad) return;
-    
+
     setIsLoading(true);
     try {
       // Use the counts from the ad itself (same as displayed on cards)
@@ -108,7 +108,7 @@ const AdReportDialog = ({ open, onOpenChange, ad }: AdReportDialogProps) => {
 
       // Process daily data
       const dailyMap: { [key: string]: { views: number; clicks: number } } = {};
-      
+
       interactions?.forEach(interaction => {
         const date = format(new Date(interaction.created_at), "yyyy-MM-dd");
         if (!dailyMap[date]) {
@@ -134,7 +134,7 @@ const AdReportDialog = ({ open, onOpenChange, ad }: AdReportDialogProps) => {
       // Placement data - check if it's "all" or cuisine-specific based on placement
       const isAllPlacement = ad.placement === "spin_popup_all" || ad.placement === "weekly_picks";
       const isCuisinePlacement = ad.placement.startsWith("spin_popup_cuisine_");
-      
+
       setPlacementData({
         all_views: isAllPlacement ? views.length : 0,
         cuisine_views: isCuisinePlacement ? views.length : 0,
@@ -279,15 +279,15 @@ const AdReportDialog = ({ open, onOpenChange, ad }: AdReportDialogProps) => {
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={hourlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                        <XAxis 
-                          dataKey="hour" 
+                        <XAxis
+                          dataKey="hour"
                           tick={{ fontSize: 10 }}
                           interval={2}
                         />
                         <YAxis tick={{ fontSize: 10 }} />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: 'hsl(var(--background))', 
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--background))',
                             border: '1px solid hsl(var(--border))',
                             borderRadius: '8px',
                             direction: 'rtl'
@@ -331,14 +331,14 @@ const AdReportDialog = ({ open, onOpenChange, ad }: AdReportDialogProps) => {
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={dailyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                          <XAxis 
-                            dataKey="date" 
+                          <XAxis
+                            dataKey="date"
                             tick={{ fontSize: 10 }}
                           />
                           <YAxis tick={{ fontSize: 10 }} />
-                          <Tooltip 
-                            contentStyle={{ 
-                              backgroundColor: 'hsl(var(--background))', 
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: 'hsl(var(--background))',
                               border: '1px solid hsl(var(--border))',
                               borderRadius: '8px',
                               direction: 'rtl'
@@ -349,18 +349,18 @@ const AdReportDialog = ({ open, onOpenChange, ad }: AdReportDialogProps) => {
                               name === 'views' ? 'مشاهدات' : 'نقرات'
                             ]}
                           />
-                          <Line 
-                            type="monotone" 
-                            dataKey="views" 
-                            stroke="hsl(var(--primary))" 
+                          <Line
+                            type="monotone"
+                            dataKey="views"
+                            stroke="hsl(var(--primary))"
                             strokeWidth={2}
                             dot={{ fill: 'hsl(var(--primary))' }}
                             name="views"
                           />
-                          <Line 
-                            type="monotone" 
-                            dataKey="clicks" 
-                            stroke="hsl(142 76% 45%)" 
+                          <Line
+                            type="monotone"
+                            dataKey="clicks"
+                            stroke="hsl(142 76% 45%)"
                             strokeWidth={2}
                             dot={{ fill: 'hsl(142 76% 45%)' }}
                             name="clicks"

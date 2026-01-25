@@ -20,6 +20,8 @@ import Statistics from "./pages/Statistics";
 import Contact from "./pages/Contact";
 import Map from "./pages/Map";
 import NotFound from "./pages/NotFound";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +48,8 @@ const App = () => (
               <Route path="/statistics" element={<Statistics />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/map" element={<Map />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
