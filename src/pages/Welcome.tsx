@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Mail, User, Eye, EyeOff } from "lucide-react";
+import { Mail, User, Eye, EyeOff, Phone } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -390,23 +390,36 @@ const Welcome = () => {
             animate={{ opacity: 1 }}
             className="space-y-4"
           >
-            {/* Email Sign In */}
+            {/* Sign In */}
             <Button
               onClick={() => setMode("login")}
               variant="outline"
-              className="w-full h-12 text-base gap-3"
+              className="w-full h-12 text-base border-2"
             >
               <Mail className="w-5 h-5" />
-              {t("تسجيل الدخول بالإيميل", "Sign in with Email")}
+              {t("تسجيل الدخول", "Sign in")}
             </Button>
+
+            {/* Login Options Hint */}
+            <p className="text-center text-xs text-muted-foreground mt-2">
+              {t("بالإيميل أو رقم الهاتف", "With email or phone")}
+            </p>
 
             {/* Sign Up */}
             <Button
               onClick={() => setMode("signup")}
-              className="w-full h-12 text-base"
+              size="lg"
+              className="w-full h-14 text-lg font-bold shadow-button hover:shadow-button-hover"
             >
               {t("إنشاء حساب جديد", "Create new account")}
             </Button>
+
+            {/* Registration Options Hint */}
+            <p className="text-center text-xs text-muted-foreground mt-2 flex items-center justify-center gap-2">
+              <Mail className="w-3 h-3" />
+              {t("سجّل بالإيميل أو رقم الهاتف", "Sign up with email or phone")}
+              <Phone className="w-3 h-3" />
+            </p>
 
             {/* Guest Mode */}
             <div className="relative py-4">
@@ -496,7 +509,10 @@ const Welcome = () => {
             ) : (
               <Input
                 type="email"
-                placeholder={t("البريد الإلكتروني", "Email")}
+                placeholder={mode === "login"
+                  ? t("البريد الإلكتروني أو رقم الهاتف", "Email or Phone Number")
+                  : t("البريد الإلكتروني", "Email")
+                }
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-12 text-base"
