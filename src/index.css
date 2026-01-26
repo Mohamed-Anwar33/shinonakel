@@ -185,15 +185,16 @@
 
 /* Specific fixes for delivery app badges and filter buttons */
 @layer components {
-  /* Delivery app badges */
+  /* Delivery app badges - iOS Safari fix for Arabic font */
   button[style*="border-color"],
   span[style*="border-color"] {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
     line-height: 1 !important;
-    padding-top: 0.5rem !important;
-    padding-bottom: 0.5rem !important;
+    /* Compensate for Arabic font baseline shift */
+    padding-top: 0.625rem !important;
+    padding-bottom: 0.375rem !important;
   }
 
   /* Filter buttons (Nearby, Newest, etc.) */
