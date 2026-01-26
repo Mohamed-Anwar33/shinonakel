@@ -391,10 +391,6 @@ const Results = () => {
         if (error) throw error;
 
         setSavedRestaurantIds(prev => prev.filter(name => name !== restaurant.name));
-        toast({
-          title: t("تم الإزالة", "Removed"),
-          description: t("تم إزالة المطعم من قائمتك", "Restaurant removed from your list")
-        });
       } else {
         const { error } = await supabase
           .from("saved_restaurants")

@@ -202,10 +202,6 @@ const RestaurantDetailPage = () => {
           .eq("name", restaurant.name);
 
         setIsFavorite(false);
-        toast({
-          title: t("تم الإزالة", "Removed"),
-          description: t("تم إزالة المطعم من قائمتك", "Restaurant removed from your list")
-        });
       } else {
         await supabase
           .from("saved_restaurants")
@@ -217,10 +213,6 @@ const RestaurantDetailPage = () => {
           });
 
         setIsFavorite(true);
-        toast({
-          title: t("تم الحفظ", "Saved"),
-          description: t("تم إضافة المطعم إلى قائمتك", "Restaurant added to your list")
-        });
       }
     } catch (error: any) {
       toast({

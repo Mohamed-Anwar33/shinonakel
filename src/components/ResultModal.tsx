@@ -296,7 +296,6 @@ const ResultModal = ({ isOpen, onClose, category }: ResultModalProps) => {
           .eq("user_id", user.id)
           .eq("name", adRestaurant.name);
         setIsFavorite(false);
-        toast.success(t("تم إزالة المطعم من قائمتي", "Restaurant removed from my list"));
       } else {
         await supabase.from("saved_restaurants").insert({
           user_id: user.id,
@@ -307,7 +306,6 @@ const ResultModal = ({ isOpen, onClose, category }: ResultModalProps) => {
           address: adRestaurant.branches?.[0]?.address || null
         });
         setIsFavorite(true);
-        toast.success(t("تم إضافة المطعم لقائمتي", "Restaurant added to my list"));
       }
     } catch (error) {
       toast.error(t("حدث خطأ، حاول مرة أخرى", "An error occurred, please try again"));
