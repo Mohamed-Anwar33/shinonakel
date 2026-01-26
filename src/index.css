@@ -163,13 +163,54 @@
   input[type="button"],
   input[type="submit"],
   input[type="reset"] {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    line-height: normal;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    line-height: 1 !important;
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
+    vertical-align: middle;
+    /* iOS text centering fixes */
+    -webkit-box-align: center;
+    -webkit-box-pack: center;
+  }
+
+  /* Fix for Arabic Tajawal font vertical alignment on iOS */
+  body {
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* Specific fixes for delivery app badges and filter buttons */
+@layer components {
+  /* Delivery app badges */
+  button[style*="border-color"],
+  span[style*="border-color"] {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+
+  /* Filter buttons (Nearby, Newest, etc.) */
+  button.rounded-xl,
+  button.rounded-full {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+  }
+
+  /* Bottom navigation items */
+  nav button,
+  nav a {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 }

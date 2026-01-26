@@ -506,7 +506,7 @@ const Results = () => {
           <div className="flex items-center gap-2 mb-8">
             <button
               onClick={() => setFilterNearby(!filterNearby)}
-              className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${filterNearby
+              className={`inline-flex items-center justify-center gap-2 px-4 h-10 rounded-full text-sm font-medium transition-all leading-none ${filterNearby
                 ? "bg-primary text-primary-foreground shadow-soft"
                 : "bg-card text-foreground border border-border"
                 }`}
@@ -516,7 +516,7 @@ const Results = () => {
             </button>
             <button
               onClick={() => setFilterNewest(!filterNewest)}
-              className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${filterNewest
+              className={`inline-flex items-center justify-center gap-2 px-4 h-10 rounded-full text-sm font-medium transition-all leading-none ${filterNewest
                 ? "bg-primary text-primary-foreground shadow-soft"
                 : "bg-card text-foreground border border-border"
                 }`}
@@ -652,7 +652,7 @@ const Results = () => {
                                     window.open(app.url, '_blank', 'noopener,noreferrer');
                                   }
                                 }}
-                                className="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-extrabold border-2 bg-white transition-transform hover:scale-105"
+                                className="inline-flex items-center justify-center px-4 h-8 rounded-full text-sm font-extrabold border-2 bg-white transition-transform hover:scale-105 leading-none"
                                 style={{ borderColor: app.color, color: app.color }}
                               >
                                 {app.name}

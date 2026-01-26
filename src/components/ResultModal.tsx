@@ -481,7 +481,7 @@ const ResultModal = ({ isOpen, onClose, category }: ResultModalProps) => {
                                   e.stopPropagation();
                                   handleDeliveryAppClick(app);
                                 }}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold border-2 transition-all hover:scale-105 bg-card"
+                                className="inline-flex items-center justify-center gap-1.5 px-3 h-8 rounded-full text-sm font-semibold border-2 transition-all hover:scale-105 bg-card leading-none"
                                 style={{ borderColor: app.color, color: app.color }}
                               >
                                 {app.name}

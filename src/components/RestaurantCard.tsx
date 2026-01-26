@@ -90,7 +90,7 @@ const RestaurantCard = ({
               {deliveryApps.slice(0, 2).map((app) => (
                 <span
                   key={app.name}
-                  className="px-2 py-0.5 rounded-full text-xs font-semibold border"
+                  className="inline-flex items-center justify-center px-2 h-5 rounded-full text-xs font-semibold border leading-none"
                   style={{ borderColor: app.color, color: app.color }}
                 >
                   {app.name}
