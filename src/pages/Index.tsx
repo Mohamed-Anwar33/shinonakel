@@ -319,11 +319,11 @@ const Index = () => {
         {/* Filter Buttons */}
         <section className="mb-4">
           <div className="flex gap-2">
-            <button onClick={() => setFilterNearby(!filterNearby)} className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${filterNearby ? "bg-primary text-primary-foreground shadow-soft" : "bg-card text-foreground border border-border"}`}>
+            <button onClick={() => setFilterNearby(!filterNearby)} className={`inline-flex items-center justify-center gap-2 px-4 h-10 rounded-full text-sm font-medium transition-all leading-none ${filterNearby ? "bg-primary text-primary-foreground shadow-soft" : "bg-card text-foreground border border-border"}`}>
               <span>{t("الأقرب", "Nearby")}</span>
               <span>📍</span>
             </button>
-            <button onClick={() => setFilterNewest(!filterNewest)} className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${filterNewest ? "bg-primary text-primary-foreground shadow-soft" : "bg-card text-foreground border border-border"}`}>
+            <button onClick={() => setFilterNewest(!filterNewest)} className={`inline-flex items-center justify-center gap-2 px-4 h-10 rounded-full text-sm font-medium transition-all leading-none ${filterNewest ? "bg-primary text-primary-foreground shadow-soft" : "bg-card text-foreground border border-border"}`}>
               <span>{t("الأحدث", "Newest")}</span>
               <span>⏰</span>
             </button>

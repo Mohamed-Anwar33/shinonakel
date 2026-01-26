@@ -506,7 +506,7 @@ const UnifiedRestaurantDetail = ({
                           key={app.name}
                           onClick={() => handleDeliveryApp(app)}
                           disabled={!app.url}
-                          className={`px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${app.url ? "hover:scale-105 cursor-pointer bg-card" : "opacity-50 cursor-not-allowed bg-muted/50"
+                          className={`inline-flex items-center justify-center px-4 h-10 rounded-xl text-sm font-semibold border-2 transition-all leading-none ${app.url ? "hover:scale-105 cursor-pointer bg-card" : "opacity-50 cursor-not-allowed bg-muted/50"
                             }`}
                           style={{ borderColor: app.color, color: app.color }}
                         >

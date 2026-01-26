@@ -564,7 +564,7 @@ const RestaurantDetail = ({ isOpen, onClose, restaurant }: RestaurantDetailProps
                           key={app.name}
                           onClick={() => handleDeliveryApp(app)}
                           disabled={!app.url}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold border-2 transition-all bg-card ${
+                          className={`inline-flex items-center justify-center gap-1.5 px-3 h-8 rounded-full text-sm font-semibold border-2 transition-all bg-card leading-none ${
                             app.url ? "hover:scale-105 cursor-pointer" : "opacity-50 cursor-not-allowed"
                           }`}
                           style={{ borderColor: app.color, color: app.color }}

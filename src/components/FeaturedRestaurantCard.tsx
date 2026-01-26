@@ -138,7 +138,7 @@ const FeaturedRestaurantCard = ({
                       window.open(app.url, '_blank', 'noopener,noreferrer');
                     }
                   }}
-                  className="px-4 py-2 rounded-full text-sm font-bold border-2 bg-white transition-transform hover:scale-105"
+                  className="inline-flex items-center justify-center px-4 h-9 rounded-full text-sm font-bold border-2 bg-white transition-transform hover:scale-105 leading-none"
                   style={{ borderColor: app.color, color: app.color }}
                 >
                   {app.name}

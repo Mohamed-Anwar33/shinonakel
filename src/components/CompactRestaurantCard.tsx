@@ -102,7 +102,7 @@ const CompactRestaurantCard = ({
                     window.open(url, '_blank', 'noopener,noreferrer');
                   }
                 }}
-                className="inline-flex items-center justify-center px-2 py-1 rounded-full text-[10px] font-bold border hover:opacity-80 transition-opacity min-w-[50px]"
+                className="inline-flex items-center justify-center px-2 h-6 rounded-full text-[10px] font-bold border hover:opacity-80 transition-opacity min-w-[50px] leading-none"
                 style={{ borderColor: app.color, color: app.color }}
               >
                 {app.name}
