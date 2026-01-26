@@ -358,44 +358,40 @@ const Index = () => {
           }} animate={{
             opacity: 1,
             scale: 1
-          }} className="shrink-0 w-56 bg-card rounded-xl shadow-card cursor-pointer hover:shadow-elevated transition-shadow p-3" onClick={() => handleRestaurantClick(restaurant)}>
-                  <div className="flex items-center gap-3">
-                    {/* Left side: Image circle + MapPin button */}
-                    <div className="flex flex-col items-center gap-2 shrink-0">
-                      <div className="w-14 h-14 rounded-full overflow-hidden">
-                        <img src={restaurant.image_url || restaurant1} alt={language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name} className="w-full h-full object-cover" />
-                      </div>
-                      <button onClick={e => {
-                        e.stopPropagation();
-                        const mapsUrl = restaurant.branches?.[0]?.google_maps_url;
-                        const lat = restaurant.branches?.[0]?.latitude;
-                        const lng = restaurant.branches?.[0]?.longitude;
-                        if (mapsUrl) {
-                          window.open(mapsUrl, '_blank', 'noopener,noreferrer');
-                        } else if (lat && lng) {
-                          window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank', 'noopener,noreferrer');
-                        } else {
-                          const searchQuery = encodeURIComponent(restaurant.name);
-                          window.open(`https://www.google.com/maps/search/${searchQuery}`, '_blank', 'noopener,noreferrer');
-                        }
-                      }} className="w-8 h-8 rounded-full bg-primary/10 hover:bg-primary/20 inline-flex items-center justify-center transition-colors text-primary">
-                        <MapPin className="w-4 h-4" />
-                      </button>
-                    </div>
-                    
-                    {/* Right side: Name + Cuisine */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-sm truncate">
-                        {language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        {(() => {
-                          const matchedCuisine = cuisines.find(c => c.name === restaurant.cuisine || restaurant.cuisine?.startsWith(c.name) || c.name?.startsWith(restaurant.cuisine?.slice(0, -1) || ''));
-                          const cuisineName = language === "en" && matchedCuisine?.name_en ? matchedCuisine.name_en : restaurant.cuisine;
-                          return `${matchedCuisine?.emoji || "🍽️"} ${cuisineName}`;
-                        })()}
-                      </p>
-                    </div>
+          }} className="shrink-0 w-40 bg-card rounded-xl overflow-hidden shadow-card cursor-pointer hover:shadow-elevated transition-shadow" onClick={() => handleRestaurantClick(restaurant)}>
+                  <div className="relative h-24">
+                    <img src={restaurant.image_url || restaurant1} alt={language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="p-2">
+                    <h3 className="font-bold text-sm truncate">
+                      {language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {(() => {
+                  const matchedCuisine = cuisines.find(c => c.name === restaurant.cuisine || restaurant.cuisine?.startsWith(c.name) || c.name?.startsWith(restaurant.cuisine?.slice(0, -1) || ''));
+                  const cuisineName = language === "en" && matchedCuisine?.name_en ? matchedCuisine.name_en : restaurant.cuisine;
+                  return `${matchedCuisine?.emoji || "🍽️"} ${cuisineName}`;
+                })()}
+                    </p>
+
+                    <button onClick={e => {
+                e.stopPropagation();
+                // Open map logic
+                const mapsUrl = restaurant.branches?.[0]?.google_maps_url;
+                const lat = restaurant.branches?.[0]?.latitude;
+                const lng = restaurant.branches?.[0]?.longitude;
+                if (mapsUrl) {
+                  window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                } else if (lat && lng) {
+                  window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank', 'noopener,noreferrer');
+                } else {
+                  const searchQuery = encodeURIComponent(restaurant.name);
+                  window.open(`https://www.google.com/maps/search/${searchQuery}`, '_blank', 'noopener,noreferrer');
+                }
+              }} className="w-full h-8 rounded-lg bg-primary/10 hover:bg-primary/20 inline-flex items-center justify-center gap-2 transition-colors text-primary text-center">
+                      <MapPin className="w-4 h-4" />
+                      
+                    </button>
                   </div>
                 </motion.div>)}
             </div>}
