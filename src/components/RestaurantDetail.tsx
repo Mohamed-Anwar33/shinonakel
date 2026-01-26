@@ -134,10 +134,6 @@ const RestaurantDetail = ({ isOpen, onClose, restaurant }: RestaurantDetailProps
           address: restaurant.distance || null
         });
         setIsFavorite(true);
-        toast({
-          title: "تم الحفظ",
-          description: "تم إضافة المطعم إلى قائمتك"
-        });
       }
     } catch (error: any) {
       toast({
