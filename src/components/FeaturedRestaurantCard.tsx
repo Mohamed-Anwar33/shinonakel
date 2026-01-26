@@ -52,11 +52,11 @@ const FeaturedRestaurantCard = ({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             {isSponsored && (
-              <span className="px-3 py-1 bg-accent text-accent-foreground text-xs font-bold rounded-full">
+              <span className="inline-flex items-center justify-center px-3 pt-1.5 pb-1 bg-accent text-accent-foreground text-xs font-bold rounded-full leading-none">
                 {t("إعلان مدفوع", "Sponsored")}
               </span>
             )}
-            <span className="px-3 py-1 bg-success text-white text-xs font-bold rounded-full">
+            <span className="inline-flex items-center justify-center px-3 pt-1.5 pb-1 bg-success text-white text-xs font-bold rounded-full leading-none">
               {t("مفتوح الآن", "Open Now")}
             </span>
           </div>
@@ -108,9 +108,9 @@ const FeaturedRestaurantCard = ({
           />
 
           {/* Rating Badge */}
-          <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-soft">
+          <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-white/95 backdrop-blur-sm px-3 pt-2 pb-1.5 rounded-full shadow-soft">
             <Star className="w-4 h-4 fill-accent text-accent" />
-            <span className="text-sm font-bold">{rating.toFixed(1)}</span>
+            <span className="text-sm font-bold leading-none">{rating.toFixed(1)}</span>
           </div>
         </div>
 
@@ -138,7 +138,7 @@ const FeaturedRestaurantCard = ({
                       window.open(app.url, '_blank', 'noopener,noreferrer');
                     }
                   }}
-                  className="inline-flex items-center justify-center px-4 h-9 rounded-full text-sm font-bold border-2 bg-white transition-transform hover:scale-105 leading-none"
+                  className="inline-flex items-center justify-center px-4 pt-2.5 pb-2 rounded-full text-sm font-bold border-2 bg-white transition-transform hover:scale-105 leading-none"
                   style={{ borderColor: app.color, color: app.color }}
                 >
                   {app.name}
