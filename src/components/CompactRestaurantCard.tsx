@@ -60,33 +60,32 @@ const CompactRestaurantCard = ({
               }`}
           />
         </button>
-
-        {/* Always show map icon - opens Google Maps search */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onMapClick) {
-              onMapClick();
-            } else if (mapUrl) {
-              const url = mapUrl.startsWith('http') ? mapUrl : `https://${mapUrl}`;
-              window.open(url, '_blank', 'noopener,noreferrer');
-            } else {
-              // Open Google Maps with restaurant name search
-              const searchQuery = encodeURIComponent(name);
-              window.open(`https://www.google.com/maps/search/?api=1&query=${searchQuery}`, '_blank', 'noopener,noreferrer');
-            }
-          }}
-          className="w-8 h-8 flex items-center justify-center rounded-full bg-primary/10 hover:bg-primary/20 transition-colors"
-        >
-          <MapPin className="w-4 h-4 text-primary" />
-        </button>
       </div>
 
       {/* Content: Name, Cuisine, Delivery Apps */}
       <div className="flex-1 min-w-0 text-start">
-        <h4 className="font-bold text-base truncate mb-0.5">{name}</h4>
+        <div className="flex items-center justify-between gap-2 mb-0.5">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onMapClick) {
+                onMapClick();
+              } else if (mapUrl) {
+                const url = mapUrl.startsWith('http') ? mapUrl : `https://${mapUrl}`;
+                window.open(url, '_blank', 'noopener,noreferrer');
+              } else {
+                const searchQuery = encodeURIComponent(name);
+                window.open(`https://www.google.com/maps/search/?api=1&query=${searchQuery}`, '_blank', 'noopener,noreferrer');
+              }
+            }}
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-primary/10 hover:bg-primary/20 transition-colors shrink-0"
+          >
+            <MapPin className="w-4 h-4 text-primary" />
+          </button>
+          <h4 className="font-bold text-base truncate flex-1 text-right">{name}</h4>
+        </div>
         {cuisine && (
-          <p className="text-xs text-muted-foreground mb-2">{cuisine}</p>
+          <p className="text-xs text-muted-foreground mb-2 text-right">{cuisine}</p>
         )}
 
         {/* Delivery Apps */}
