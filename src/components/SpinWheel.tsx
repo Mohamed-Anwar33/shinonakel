@@ -239,8 +239,8 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
                       <text
                         x={textX}
                         y={textY}
+                        dy="0.35em"
                         textAnchor="middle"
-                        dominantBaseline="central"
                         fill="white"
                         fontSize="10"
                         style={{ fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif' }}
