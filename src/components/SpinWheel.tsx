@@ -240,9 +240,10 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
                         x={textX}
                         y={textY}
                         textAnchor="middle"
-                        dominantBaseline="middle"
+                        dominantBaseline="central"
                         fill="white"
                         fontSize="10"
+                        style={{ fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif' }}
                         transform={`rotate(${midAngle + 90}, ${textX}, ${textY})`}
                       >
                         {category.icon}
