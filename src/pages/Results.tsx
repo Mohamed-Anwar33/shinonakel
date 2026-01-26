@@ -471,7 +471,7 @@ const Results = () => {
             onClick={() => navigate("/")}
             className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
           >
-            {language === "ar" ? <ArrowRight className="w-5 h-5 text-white" /> : <ArrowLeft className="w-5 h-5 text-white" />}
+            {language === "ar" ? <ArrowRight className="w-5 h-5 text-white flex-shrink-0" /> : <ArrowLeft className="w-5 h-5 text-white flex-shrink-0" />}
           </button>
 
           <h1 className="font-bold text-lg text-white">{t("نتيجة الاختيار", "Choice Result")}</h1>
