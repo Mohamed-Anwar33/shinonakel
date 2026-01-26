@@ -344,10 +344,9 @@ const RestaurantDetailPage = () => {
         {/* Name & Rating Row */}
         <div className="flex items-start justify-between mb-4">
           <h1 className="text-xl font-bold">{displayName}</h1>
-          <div className="flex items-center gap-1 bg-primary/10 px-3 py-1 rounded-full">
-            <Star className="w-4 h-4 fill-accent text-accent" />
+          <div className="flex items-center gap-1 bg-amber-100 px-3 py-1 rounded-full">
             <span className="font-bold">{avgRating.toFixed(1)}</span>
-            <span className="text-xs text-muted-foreground">({ratingCount})</span>
+            <Star className="w-4 h-4 fill-accent text-accent" />
           </div>
         </div>
 
