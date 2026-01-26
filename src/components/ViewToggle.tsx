@@ -14,7 +14,7 @@ const ViewToggle = ({ view, onChange }: ViewToggleProps) => {
     <div className="flex items-center gap-1 bg-white/20 rounded-full p-1">
       <button
         onClick={() => onChange("list")}
-        className={`p-2 rounded-full transition-all ${view === "list"
+        className={`p-2 rounded-full transition-all flex items-center justify-center ${view === "list"
             ? "bg-white text-primary shadow-sm"
             : "text-white/80 hover:text-white"
           }`}
@@ -24,7 +24,7 @@ const ViewToggle = ({ view, onChange }: ViewToggleProps) => {
       </button>
       <button
         onClick={() => onChange("map")}
-        className={`p-2 rounded-full transition-all ${view === "map"
+        className={`p-2 rounded-full transition-all flex items-center justify-center ${view === "map"
             ? "bg-white text-primary shadow-sm"
             : "text-white/80 hover:text-white"
           }`}
