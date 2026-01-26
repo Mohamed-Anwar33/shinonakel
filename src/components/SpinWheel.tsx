@@ -270,8 +270,8 @@ const SpinWheel = ({
 
         {/* Center button with logo - only show for multi-category wheel */}
         {!singleCategoryView && <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <button onClick={spinWheel} disabled={isSpinning} className="w-16 h-16 rounded-full bg-card shadow-elevated flex items-center justify-center z-10 transition-transform hover:scale-105 active:scale-95 disabled:opacity-70 overflow-hidden pointer-events-auto">
-              <motion.img src={logo} alt="Logo" className="w-12 h-12 object-cover" animate={isSpinning ? {
+            <button onClick={spinWheel} disabled={isSpinning} className="w-16 h-16 rounded-full shadow-elevated flex items-center justify-center z-10 transition-transform hover:scale-105 active:scale-95 disabled:opacity-70 overflow-hidden pointer-events-auto p-0 border-0">
+              <motion.img src={logo} alt="Logo" className="w-full h-full object-cover rounded-full" animate={isSpinning ? {
             rotate: 360
           } : {}} transition={isSpinning ? {
             duration: 1,
