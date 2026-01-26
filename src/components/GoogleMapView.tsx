@@ -17,24 +17,41 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
     const defaultCenter = { lat: 29.3759, lng: 47.9774 };
 
     // Generate markers from either branches or the restaurant's main location
-    // Also include restaurants without coordinates - they will open Google Maps search
-    const markers = restaurants.flatMap(r => {
+    // Restaurants without coordinates get a generated position around Kuwait City
+    const generateFallbackPosition = (index: number, total: number) => {
+        // Spread restaurants without coords in a circle around Kuwait City
+        const centerLat = 29.3759;
+        const centerLng = 47.9774;
+        const radius = 0.03; // ~3km radius spread
+        const angle = (index / Math.max(total, 1)) * 2 * Math.PI;
+        return {
+            lat: centerLat + radius * Math.cos(angle),
+            lng: centerLng + radius * Math.sin(angle)
+        };
+    };
+
+    // First pass: collect all restaurants and identify which need fallback positions
+    const restaurantsWithoutCoords: any[] = [];
+    const markersWithCoords: any[] = [];
+
+    restaurants.forEach(r => {
         const validBranches = r.branches?.filter((b: any) => b.latitude && b.longitude) || [];
 
         if (validBranches.length > 0) {
-            return validBranches.map((b: any) => ({
-                ...b,
-                restaurantName: r.name,
-                restaurantImage: r.image || r.image_url,
-                cuisine: r.cuisine,
-                rating: r.ratings && r.ratings.length > 0
-                    ? r.ratings.reduce((acc: number, curr: any) => acc + curr.rating, 0) / r.ratings.length
-                    : null,
-                hasCoordinates: true
-            }));
+            validBranches.forEach((b: any) => {
+                markersWithCoords.push({
+                    ...b,
+                    restaurantName: r.name,
+                    restaurantImage: r.image || r.image_url,
+                    cuisine: r.cuisine,
+                    rating: r.ratings && r.ratings.length > 0
+                        ? r.ratings.reduce((acc: number, curr: any) => acc + curr.rating, 0) / r.ratings.length
+                        : null,
+                    hasRealCoords: true
+                });
+            });
         } else if (r.latitude && r.longitude) {
-            // Fallback: Use the restaurant's direct coordinates (e.g. from geocoding in Results.tsx)
-            return [{
+            markersWithCoords.push({
                 id: r.id,
                 latitude: r.latitude,
                 longitude: r.longitude,
@@ -45,29 +62,34 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
                     ? r.ratings.reduce((acc: number, curr: any) => acc + curr.rating, 0) / r.ratings.length
                     : (r.rating || null),
                 google_maps_url: r.mapsUrl,
-                hasCoordinates: true
-            }];
+                hasRealCoords: true
+            });
         } else {
-            // Restaurant without coordinates - will use Google Maps search
-            return [{
+            restaurantsWithoutCoords.push({
                 id: r.id,
-                latitude: null,
-                longitude: null,
                 restaurantName: r.name,
                 restaurantImage: r.image || r.image_url,
                 cuisine: r.cuisine,
                 rating: r.ratings && r.ratings.length > 0
                     ? r.ratings.reduce((acc: number, curr: any) => acc + curr.rating, 0) / r.ratings.length
                     : (r.rating || null),
-                google_maps_url: null,
-                hasCoordinates: false
-            }];
+                hasRealCoords: false
+            });
         }
     });
 
-    // Separate markers with and without coordinates
-    const markersWithCoords = markers.filter(m => m.hasCoordinates && m.latitude && m.longitude);
-    const markersWithoutCoords = markers.filter(m => !m.hasCoordinates);
+    // Generate fallback positions for restaurants without coordinates
+    const markersWithFallback = restaurantsWithoutCoords.map((r, index) => {
+        const fallbackPos = generateFallbackPosition(index, restaurantsWithoutCoords.length);
+        return {
+            ...r,
+            latitude: fallbackPos.lat,
+            longitude: fallbackPos.lng
+        };
+    });
+
+    // Combine all markers
+    const allMarkers = [...markersWithCoords, ...markersWithFallback];
 
     if (!apiKey) {
         return (
@@ -98,33 +120,51 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
                         </AdvancedMarker>
                     )}
 
-                    {/* Restaurant Markers with Coordinates */}
-                    {markersWithCoords.map((branch, index) => (
+                    {/* All Restaurant Markers */}
+                    {allMarkers.map((branch, index) => (
                         <AdvancedMarker
                             key={`${branch.id}-${index}`}
-                            position={{ lat: branch.latitude!, lng: branch.longitude! }}
+                            position={{ lat: branch.latitude, lng: branch.longitude }}
                             onClick={() => {
-                                const url = branch.google_maps_url ||
-                                    `https://www.google.com/maps/search/?api=1&query=${branch.latitude},${branch.longitude}`;
-                                window.open(url, '_blank', 'noopener,noreferrer');
+                                if (branch.hasRealCoords) {
+                                    const url = branch.google_maps_url ||
+                                        `https://www.google.com/maps/search/?api=1&query=${branch.latitude},${branch.longitude}`;
+                                    window.open(url, '_blank', 'noopener,noreferrer');
+                                } else {
+                                    // No real coordinates - open Google Maps search
+                                    const searchQuery = encodeURIComponent(`${branch.restaurantName} Kuwait`);
+                                    window.open(`https://www.google.com/maps/search/${searchQuery}`, '_blank', 'noopener,noreferrer');
+                                }
                             }}
                             className="cursor-pointer hover:z-50"
                         >
                             <div className="relative flex flex-col items-center group transition-transform hover:scale-110">
-                                <div className="relative w-12 h-12 rounded-full border-[3px] border-white shadow-elevated overflow-hidden bg-white z-10">
+                                <div className={`relative w-12 h-12 rounded-full border-[3px] shadow-elevated overflow-hidden z-10 ${
+                                    branch.hasRealCoords ? 'border-white bg-white' : 'border-orange-400 bg-orange-50'
+                                }`}>
                                     {branch.restaurantImage ? (
                                         <img
                                             src={branch.restaurantImage}
                                             alt={branch.restaurantName}
-                                            className="w-full h-full object-cover"
+                                            className={`w-full h-full object-cover ${!branch.hasRealCoords ? 'opacity-80' : ''}`}
                                         />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-primary text-white">
+                                        <div className={`w-full h-full flex items-center justify-center ${
+                                            branch.hasRealCoords ? 'bg-primary text-white' : 'bg-orange-400 text-white'
+                                        }`}>
                                             <MapPin className="w-6 h-6" />
                                         </div>
                                     )}
+                                    {/* Search indicator for restaurants without real coords */}
+                                    {!branch.hasRealCoords && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                            <Navigation className="w-4 h-4 text-white" />
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="w-3 h-3 bg-white rotate-45 -mt-2 shadow-sm z-0"></div>
+                                <div className={`w-3 h-3 rotate-45 -mt-2 shadow-sm z-0 ${
+                                    branch.hasRealCoords ? 'bg-white' : 'bg-orange-400'
+                                }`}></div>
 
                                 {/* Rating Badge */}
                                 {branch.rating && (
@@ -191,42 +231,17 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-card/95 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg text-center text-sm flex items-center gap-2 z-10">
                     <MapPin className="w-4 h-4 text-primary" />
                     <span className="font-medium">
-                        {category === "الكل" ? "جميع المطاعم" : `مطاعم ${category}`} ({markersWithCoords.length})
+                        {category === "الكل" ? "جميع المطاعم" : `مطاعم ${category}`} ({allMarkers.length})
                     </span>
                 </div>
 
-                {/* Restaurants without coordinates - Show as list at bottom */}
-                {markersWithoutCoords.length > 0 && (
-                    <div className="absolute bottom-4 left-4 right-4 bg-card/95 backdrop-blur-sm rounded-xl shadow-lg p-3 max-h-32 overflow-y-auto z-10">
-                        <p className="text-xs text-muted-foreground mb-2 font-medium">
-                            مطاعم بدون موقع محدد (اضغط للبحث في Google Maps):
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                            {markersWithoutCoords.map((restaurant, index) => (
-                                <button
-                                    key={`no-coords-${restaurant.id}-${index}`}
-                                    onClick={() => {
-                                        const searchQuery = encodeURIComponent(`${restaurant.restaurantName} Kuwait`);
-                                        window.open(`https://www.google.com/maps/search/${searchQuery}`, '_blank', 'noopener,noreferrer');
-                                    }}
-                                    className="flex items-center gap-2 bg-white hover:bg-primary/10 border border-border rounded-full px-3 py-1.5 transition-colors"
-                                >
-                                    {restaurant.restaurantImage ? (
-                                        <img
-                                            src={restaurant.restaurantImage}
-                                            alt={restaurant.restaurantName}
-                                            className="w-6 h-6 rounded-full object-cover"
-                                        />
-                                    ) : (
-                                        <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                                            <MapPin className="w-3 h-3 text-primary" />
-                                        </div>
-                                    )}
-                                    <span className="text-xs font-medium">{restaurant.restaurantName}</span>
-                                    <Navigation className="w-3 h-3 text-primary" />
-                                </button>
-                            ))}
-                        </div>
+                {/* Legend for markers without real coordinates */}
+                {markersWithFallback.length > 0 && (
+                    <div className="absolute bottom-4 left-4 bg-card/95 backdrop-blur-sm rounded-lg shadow-lg px-3 py-2 z-10 flex items-center gap-2">
+                        <div className="w-4 h-4 rounded-full border-2 border-orange-400 bg-orange-50"></div>
+                        <span className="text-xs text-muted-foreground">
+                            موقع تقريبي ({markersWithFallback.length})
+                        </span>
                     </div>
                 )}
             </div>
