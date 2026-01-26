@@ -200,7 +200,15 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
                 className="w-full h-full rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-105 active:scale-95 disabled:opacity-70"
                 style={{ backgroundColor: singleCategoryView.color }}
               >
-                <span className="text-8xl drop-shadow-lg select-none leading-none pt-2">
+                <span 
+                  className="text-8xl drop-shadow-lg select-none"
+                  style={{ 
+                    lineHeight: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
                   {singleCategoryView.emoji}
                 </span>
               </button>
