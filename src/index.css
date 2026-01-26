@@ -155,7 +155,7 @@
   }
 }
 
-/* iOS Safari Button Text Centering Fix */
+/* iOS Safari Button Text Centering Fix - Arabic Font Baseline Compensation */
 @layer base {
   button,
   [role="button"],
@@ -175,6 +175,9 @@
     /* iOS text centering fixes */
     -webkit-box-align: center;
     -webkit-box-pack: center;
+    /* Arabic font baseline compensation */
+    padding-top: 0.625rem !important;
+    padding-bottom: 0.375rem !important;
   }
 
   /* Fix for Arabic Tajawal font vertical alignment on iOS */
@@ -204,6 +207,8 @@
     align-items: center !important;
     justify-content: center !important;
     line-height: 1 !important;
+    padding-top: 0.625rem !important;
+    padding-bottom: 0.375rem !important;
   }
 
   /* Bottom navigation items */
