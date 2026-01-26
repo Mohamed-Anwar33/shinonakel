@@ -228,7 +228,7 @@ const SpinWheel = ({
           <button onClick={spinWheel} disabled={isSpinning} className="w-full h-full rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-105 active:scale-95 disabled:opacity-70" style={{
             backgroundColor: singleCategoryView.color
           }}>
-                <span className="drop-shadow-lg select-none text-center font-thin py-[24px] pt-0 mb-0 mr-[4px] pb-0 pr-0 px-0 text-6xl font-mono pl-0" style={{
+                <span className="drop-shadow-lg select-none text-center font-thin py-[24px] pt-0 mb-0 pb-0 pr-0 px-0 font-mono pl-0 mr-0 text-7xl" style={{
               lineHeight: 1,
               display: 'flex',
               alignItems: 'center',
