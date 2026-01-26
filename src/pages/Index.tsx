@@ -361,27 +361,27 @@ const Index = () => {
                       </h3>
                       <p className="text-xs text-muted-foreground">
                         {(() => {
-                          const matchedCuisine = cuisines.find(c => c.name === restaurant.cuisine || restaurant.cuisine?.startsWith(c.name) || c.name?.startsWith(restaurant.cuisine?.slice(0, -1) || ''));
-                          const cuisineName = language === "en" && matchedCuisine?.name_en ? matchedCuisine.name_en : restaurant.cuisine;
-                          return `${matchedCuisine?.emoji || "🍽️"} ${cuisineName}`;
-                        })()}
+                    const matchedCuisine = cuisines.find(c => c.name === restaurant.cuisine || restaurant.cuisine?.startsWith(c.name) || c.name?.startsWith(restaurant.cuisine?.slice(0, -1) || ''));
+                    const cuisineName = language === "en" && matchedCuisine?.name_en ? matchedCuisine.name_en : restaurant.cuisine;
+                    return `${matchedCuisine?.emoji || "🍽️"} ${cuisineName}`;
+                  })()}
                       </p>
                     </div>
                     <button onClick={e => {
-                      e.stopPropagation();
-                      const mapsUrl = restaurant.branches?.[0]?.google_maps_url;
-                      const lat = restaurant.branches?.[0]?.latitude;
-                      const lng = restaurant.branches?.[0]?.longitude;
-                      if (mapsUrl) {
-                        window.open(mapsUrl, '_blank', 'noopener,noreferrer');
-                      } else if (lat && lng) {
-                        window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank', 'noopener,noreferrer');
-                      } else {
-                        const searchQuery = encodeURIComponent(restaurant.name);
-                        window.open(`https://www.google.com/maps/search/${searchQuery}`, '_blank', 'noopener,noreferrer');
-                      }
-                    }} className="w-7 h-7 shrink-0 rounded-full bg-primary/10 hover:bg-primary/20 inline-flex items-center justify-center transition-colors text-primary">
-                      <MapPin className="w-3.5 h-3.5" />
+                e.stopPropagation();
+                const mapsUrl = restaurant.branches?.[0]?.google_maps_url;
+                const lat = restaurant.branches?.[0]?.latitude;
+                const lng = restaurant.branches?.[0]?.longitude;
+                if (mapsUrl) {
+                  window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                } else if (lat && lng) {
+                  window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank', 'noopener,noreferrer');
+                } else {
+                  const searchQuery = encodeURIComponent(restaurant.name);
+                  window.open(`https://www.google.com/maps/search/${searchQuery}`, '_blank', 'noopener,noreferrer');
+                }
+              }} className="w-7 h-7 shrink-0 rounded-full bg-primary/10 hover:bg-primary/20 inline-flex items-center justify-center transition-colors text-primary">
+                      <MapPin className="w-3.5 h-3.5 mb-[4px]" />
                     </button>
                   </div>
                 </motion.div>)}
