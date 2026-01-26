@@ -111,8 +111,9 @@ const Results = () => {
   const emojiParam = searchParams.get("emoji");
   const { user, isGuest } = useAuth();
   const { language, t } = useLanguage();
+
   const { toast } = useToast();
-  const { latitude: userLat, longitude: userLon, requestLocation, isLoading: isLoadingLocation } = useGeolocation();
+  const { latitude: userLat, longitude: userLon, requestLocation, isLoading: isLoadingLocation, error: locationError } = useGeolocation();
 
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [savedRestaurantIds, setSavedRestaurantIds] = useState<string[]>([]);
@@ -126,6 +127,17 @@ const Results = () => {
   const [showRestaurantDetail, setShowRestaurantDetail] = useState(false);
   const [selectedRestaurantData, setSelectedRestaurantData] = useState<any>(null);
   const [geocodedCoords, setGeocodedCoords] = useState<Map<string, { lat: number; lon: number }>>(new Map());
+
+  // Show location error if it occurs
+  useEffect(() => {
+    if (locationError && filterNearby) {
+      toast({
+        title: t("تعذر تحديد الموقع", "Location Error"),
+        description: locationError,
+        variant: "destructive"
+      });
+    }
+  }, [locationError, filterNearby, t, toast]);
   const geocodingInProgress = useRef(false);
 
   useEffect(() => {
@@ -183,6 +195,17 @@ const Results = () => {
       console.error("Error fetching saved restaurants:", error);
     }
   };
+
+  // Show location error if it occurs
+  useEffect(() => {
+    if (locationError && filterNearby) {
+      toast({
+        title: t("تعذر تحديد الموقع", "Location Error"),
+        description: locationError,
+        variant: "destructive"
+      });
+    }
+  }, [locationError, filterNearby, t, toast]);
 
   // Geocode restaurants that don't have coordinates
   useEffect(() => {
@@ -313,13 +336,18 @@ const Results = () => {
       if (filterNearby && filterNewest) {
         const aDistance = a.distanceNum ?? Infinity;
         const bDistance = b.distanceNum ?? Infinity;
-        const distanceDiff = aDistance - bDistance;
-        if (distanceDiff !== 0) return distanceDiff;
+        if (aDistance !== bDistance) {
+          return aDistance - bDistance;
+        }
         return b.createdAt.getTime() - a.createdAt.getTime();
       } else if (filterNearby) {
         const aDistance = a.distanceNum ?? Infinity;
         const bDistance = b.distanceNum ?? Infinity;
-        return aDistance - bDistance;
+        if (aDistance !== bDistance) {
+          return aDistance - bDistance;
+        }
+        // Fallback to default sort if distances are equal (or both unknown)
+        return b.createdAt.getTime() - a.createdAt.getTime();
       } else if (filterNewest) {
         return b.createdAt.getTime() - a.createdAt.getTime();
       }
@@ -355,6 +383,12 @@ const Results = () => {
     try {
       if (isSaved) {
         const { error } = await supabase
+          .from("saved_restaurants")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("name", restaurant.name);
+
+        if (error) throw error;
 
         setSavedRestaurantIds(prev => prev.filter(name => name !== restaurant.name));
         toast({
@@ -436,7 +470,7 @@ const Results = () => {
     <div className="min-h-screen bg-gradient-to-b from-primary/10 via-background to-background pb-24" dir={language === "ar" ? "rtl" : "ltr"}>
       {/* Header with Primary Color like Admin Panel */}
       <header className="sticky top-0 z-40 bg-primary/95 backdrop-blur-sm shadow-md">
-        <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
           <button
             onClick={() => navigate("/")}
             className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
@@ -450,31 +484,33 @@ const Results = () => {
         </div>
       </header>
 
-      <main className="max-w-md mx-auto px-4">
-        {/* Filters */}
-        <div className="flex items-center gap-2 mb-4">
-          <button
-            onClick={() => setFilterNearby(!filterNearby)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${filterNearby
-              ? "bg-primary text-primary-foreground shadow-soft"
-              : "bg-card text-foreground border border-border"
-              }`}
-          >
-            {t("الأقرب", "Nearby")} 📍
-          </button>
-          <button
-            onClick={() => setFilterNewest(!filterNewest)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${filterNewest
-              ? "bg-primary text-primary-foreground shadow-soft"
-              : "bg-card text-foreground border border-border"
-              }`}
-          >
-            {t("الأحدث", "Newest")} ⏰
-          </button>
-        </div>
+      <main className="max-w-md mx-auto px-4 pt-6">
+        {/* Filters - Hide in Map View */}
+        {viewMode === "list" && (
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              onClick={() => setFilterNearby(!filterNearby)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${filterNearby
+                ? "bg-primary text-primary-foreground shadow-soft"
+                : "bg-card text-foreground border border-border"
+                }`}
+            >
+              {t("الأقرب", "Nearby")} 📍
+            </button>
+            <button
+              onClick={() => setFilterNewest(!filterNewest)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${filterNewest
+                ? "bg-primary text-primary-foreground shadow-soft"
+                : "bg-card text-foreground border border-border"
+                }`}
+            >
+              {t("الأحدث", "Newest")} ⏰
+            </button>
+          </div>
+        )}
 
         {/* Hero Emoji */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-6 pt-4">
           {emojiParam ? (
             <span className="text-6xl">{emojiParam}</span>
           ) : cuisines.length > 0 ? (

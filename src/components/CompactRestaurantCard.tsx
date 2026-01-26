@@ -83,7 +83,7 @@ const CompactRestaurantCard = ({
       </div>
 
       {/* Content: Name, Cuisine, Delivery Apps */}
-      <div className="flex-1 min-w-0 text-right">
+      <div className="flex-1 min-w-0 text-start">
         <h4 className="font-bold text-base truncate mb-0.5">{name}</h4>
         {cuisine && (
           <p className="text-xs text-muted-foreground mb-2">{cuisine}</p>

@@ -17,7 +17,7 @@ const BottomNav = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-elevated">
+    <nav className="fixed bottom-0 left-0 right-0 bg-primary border-t border-white/10 shadow-elevated rounded-t-3xl">
       <div className="max-w-md mx-auto">
         {/* Main Navigation */}
         <div className={`flex items-center justify-around py-2 ${language === "ar" ? "flex-row" : "flex-row-reverse"}`}>
@@ -30,13 +30,13 @@ const BottomNav = () => {
                 whileTap={{ scale: 0.9 }}
                 onClick={() => navigate(item.path)}
                 className={`flex flex-col items-center gap-1 px-6 py-2 rounded-2xl transition-colors ${isActive
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "text-white"
+                  : "text-white/60 hover:text-white"
                   }`}
               >
                 {isActive ? (
                   <div className="relative">
-                    <div className="absolute inset-0 bg-primary/20 rounded-full blur-lg" />
+                    <div className="absolute inset-0 bg-white/20 rounded-full blur-md" />
                     {item.icon}
                   </div>
                 ) : (
