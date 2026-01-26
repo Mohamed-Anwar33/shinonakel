@@ -239,10 +239,6 @@ const Index = () => {
         } = await supabase.from("saved_restaurants").delete().eq("user_id", user.id).eq("name", restaurant.name);
         if (error) throw error;
         setSavedRestaurantIds(prev => prev.filter(name => name !== restaurant.name));
-        toast({
-          title: t("تم الإزالة", "Removed"),
-          description: t("تم إزالة المطعم من قائمتك", "Restaurant removed from your list")
-        });
       } else {
         const {
           error
@@ -256,10 +252,6 @@ const Index = () => {
         });
         if (error) throw error;
         setSavedRestaurantIds(prev => [...prev, restaurant.name]);
-        toast({
-          title: t("تم الحفظ", "Saved"),
-          description: t("تم إضافة المطعم إلى قائمتك", "Restaurant added to your list")
-        });
       }
     } catch (error: any) {
       toast({
