@@ -154,3 +154,22 @@
     @apply bg-gradient-to-l from-primary to-coral-dark bg-clip-text text-transparent;
   }
 }
+
+/* iOS Safari Button Text Centering Fix */
+@layer base {
+  button,
+  [role="button"],
+  .btn,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: normal;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
+}
