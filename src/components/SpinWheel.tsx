@@ -78,7 +78,7 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
     if (selectedCategory === "الكل") {
       // Show all different categories (excluding "الكل" itself)
       const filtered = availableCuisines.filter(c => c.name !== "الكل");
-      
+
       // Remove duplicates and merge similar cuisines (e.g., بيتزا -> إيطالية)
       const seenNames = new Set<string>();
       const uniqueCuisines = filtered.filter((cuisine) => {
@@ -89,7 +89,7 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
         seenNames.add(normalizedName);
         return true;
       });
-      
+
       return uniqueCuisines.map((cuisine, index) => {
         const normalizedName = cuisineMergeMap[cuisine.name] || cuisine.name;
         return {
@@ -115,10 +115,11 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
     if (isSpinning) return;
 
     setIsSpinning(true);
-    const spins = 5 + Math.random() * 3;
+    const spinDuration = 800; // 0.8 second total duration - faster spin
+    const rotations = 2; // Number of full rotations before stopping
     const extraDegrees = Math.random() * 360;
-    const totalRotation = spins * 360 + extraDegrees;
-    
+    const totalRotation = rotations * 360 + extraDegrees;
+
     // Calculate new rotation value BEFORE setting state
     const newRotation = rotation + totalRotation;
     setRotation(newRotation);
@@ -134,14 +135,14 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
         // Calculate which segment is under the pointer
         // Segment 0 starts at top, so we need to find the segment based on how much the wheel rotated
         const index = Math.floor(((360 - normalizedRotation + segmentAngle / 2) % 360) / segmentAngle) % displayCategories.length;
-        
+
         onResult(displayCategories[index].name);
       } else {
         // If a specific category is selected, return that category
         onResult(selectedCategory);
       }
       setIsSpinning(false);
-    }, 4000);
+    }, 1000); // 1.0 ثانية فقط!
   };
 
   const segmentAngle = 360 / displayCategories.length;
@@ -151,15 +152,15 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
     if (selectedCategory !== "الكل") {
       const selectedCat = availableCuisines.find(c => c.name === selectedCategory);
       const normalizedName = cuisineMergeMap[selectedCategory] || selectedCategory;
-      
+
       // Try to get color from cuisineColorMap with various name formats
-      const color = cuisineColorMap[selectedCategory] || 
-                    cuisineColorMap[normalizedName] ||
-                    cuisineColorMap[selectedCategory.replace(/ة$/, '')] || // Remove feminine ending
-                    cuisineColorMap[selectedCategory.replace(/ي$/, 'ية')] || // Add feminine ending
-                    defaultWheelColors[availableCuisines.findIndex(c => c.name === selectedCategory) % defaultWheelColors.length] ||
-                    "#4A90D9";
-      
+      const color = cuisineColorMap[selectedCategory] ||
+        cuisineColorMap[normalizedName] ||
+        cuisineColorMap[selectedCategory.replace(/ة$/, '')] || // Remove feminine ending
+        cuisineColorMap[selectedCategory.replace(/ي$/, 'ية')] || // Add feminine ending
+        defaultWheelColors[availableCuisines.findIndex(c => c.name === selectedCategory) % defaultWheelColors.length] ||
+        "#4A90D9";
+
       return {
         emoji: selectedCat?.emoji || "🍽️",
         color,
@@ -187,7 +188,7 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
             className="w-full h-full rounded-full overflow-hidden shadow-elevated relative"
             style={{ rotate: singleCategoryView ? 0 : rotation }}
             animate={{ rotate: singleCategoryView ? 0 : rotation }}
-            transition={{ duration: 4, ease: [0.17, 0.67, 0.12, 0.99] }}
+            transition={{ duration: 1.5, ease: [0.25, 0.8, 0.25, 1] }}
           >
             {singleCategoryView ? (
               /* Single category view - emoji is the button */
@@ -197,13 +198,13 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
                 className="w-full h-full rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-105 active:scale-95 disabled:opacity-70"
                 style={{ backgroundColor: singleCategoryView.color }}
               >
-                <motion.span 
+                <motion.span
                   className="text-8xl drop-shadow-lg select-none"
-                  animate={isSpinning ? { 
+                  animate={isSpinning ? {
                     rotate: [0, 360],
                     scale: [1, 1.1, 1]
                   } : {}}
-                  transition={isSpinning ? { 
+                  transition={isSpinning ? {
                     rotate: { duration: 1, repeat: Infinity, ease: "linear" },
                     scale: { duration: 0.5, repeat: Infinity }
                   } : {}}
@@ -221,18 +222,18 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
                   const endAngle = startAngle + segmentAngle;
                   const startRad = (startAngle * Math.PI) / 180;
                   const endRad = (endAngle * Math.PI) / 180;
-                  
+
                   const x1 = 50 + 50 * Math.cos(startRad);
                   const y1 = 50 + 50 * Math.sin(startRad);
                   const x2 = 50 + 50 * Math.cos(endRad);
                   const y2 = 50 + 50 * Math.sin(endRad);
-                  
+
                   const largeArc = segmentAngle > 180 ? 1 : 0;
-                  
-                   const midAngle = (startAngle + endAngle) / 2;
-                   const midRad = (midAngle * Math.PI) / 180;
-                   const textX = 50 + 38 * Math.cos(midRad);
-                   const textY = 50 + 38 * Math.sin(midRad);
+
+                  const midAngle = (startAngle + endAngle) / 2;
+                  const midRad = (midAngle * Math.PI) / 180;
+                  const textX = 50 + 38 * Math.cos(midRad);
+                  const textY = 50 + 38 * Math.sin(midRad);
 
                   return (
                     <g key={`${category.name}-${index}`}>
@@ -269,9 +270,9 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
             disabled={isSpinning}
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-card shadow-elevated flex items-center justify-center z-10 transition-transform hover:scale-105 active:scale-95 disabled:opacity-70 overflow-hidden"
           >
-            <motion.img 
-              src={logo} 
-              alt="Logo" 
+            <motion.img
+              src={logo}
+              alt="Logo"
               className="w-12 h-12 object-contain"
               animate={isSpinning ? { rotate: 360 } : {}}
               transition={isSpinning ? { duration: 1, repeat: Infinity, ease: "linear" } : {}}

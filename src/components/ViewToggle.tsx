@@ -9,30 +9,28 @@ interface ViewToggleProps {
 
 const ViewToggle = ({ view, onChange }: ViewToggleProps) => {
   const { t } = useLanguage();
-  
+
   return (
-    <div className="flex items-center bg-muted rounded-xl p-1">
+    <div className="flex items-center gap-1 bg-white/20 rounded-full p-1">
       <button
         onClick={() => onChange("list")}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-          view === "list"
-            ? "bg-card text-foreground shadow-soft"
-            : "text-muted-foreground hover:text-foreground"
-        }`}
+        className={`p-2 rounded-full transition-all ${view === "list"
+            ? "bg-white text-primary shadow-sm"
+            : "text-white/80 hover:text-white"
+          }`}
+        aria-label="List view"
       >
-        <List className="w-4 h-4" />
-        <span>{t("قائمة", "List")}</span>
+        <List className="w-5 h-5" />
       </button>
       <button
         onClick={() => onChange("map")}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-          view === "map"
-            ? "bg-card text-foreground shadow-soft"
-            : "text-muted-foreground hover:text-foreground"
-        }`}
+        className={`p-2 rounded-full transition-all ${view === "map"
+            ? "bg-white text-primary shadow-sm"
+            : "text-white/80 hover:text-white"
+          }`}
+        aria-label="Map view"
       >
-        <Map className="w-4 h-4" />
-        <span>{t("خريطة", "Map")}</span>
+        <Map className="w-5 h-5" />
       </button>
     </div>
   );

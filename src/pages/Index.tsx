@@ -440,7 +440,7 @@ const Index = () => {
                     <h3 className="font-bold text-sm truncate">
                       {language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name}
                     </h3>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground mb-2">
                       {(() => {
                         const matchedCuisine = cuisines.find(c =>
                           c.name === restaurant.cuisine ||
@@ -453,6 +453,29 @@ const Index = () => {
                         return `${matchedCuisine?.emoji || "🍽️"} ${cuisineName}`;
                       })()}
                     </p>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Open map logic
+                        const mapsUrl = restaurant.branches?.[0]?.google_maps_url;
+                        const lat = restaurant.branches?.[0]?.latitude;
+                        const lng = restaurant.branches?.[0]?.longitude;
+
+                        if (mapsUrl) {
+                          window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                        } else if (lat && lng) {
+                          window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank', 'noopener,noreferrer');
+                        } else {
+                          const searchQuery = encodeURIComponent(restaurant.name);
+                          window.open(`https://www.google.com/maps/search/${searchQuery}`, '_blank', 'noopener,noreferrer');
+                        }
+                      }}
+                      className="w-full h-8 rounded-lg bg-primary/10 hover:bg-primary/20 flex items-center justify-center transition-colors text-primary"
+                    >
+                      <MapPin className="w-4 h-4 ml-1" />
+                      <span className="text-xs font-medium">{t("الموقع", "Map")}</span>
+                    </button>
                   </div>
                 </motion.div>
               ))}

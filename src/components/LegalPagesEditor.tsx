@@ -17,6 +17,32 @@ interface LegalPage {
     updated_at: string;
 }
 
+const DEFAULT_TERMS = `1. شروط الاستخدام (Terms of Use)
+
+طبيعة المحتوى: الموقع يقدم معلومات حول المطاعم، الوجبات، أو الوصفات. هذه المعلومات هي لأغراض ترفيهية وإرشادية فقط، ولا يتحمل الموقع مسؤولية أي تغيير في أسعار المطاعم أو جودة خدماتها.
+
+حدود المسؤولية: الموقع غير مسؤول عن أي حالات حساسية غذائية أو أضرار ناتجة عن تجربة وصفة أو مطعم تم ذكره، فالمسؤولية تقع على عاتق المستخدم والمطعم المزود للخدمة.
+
+السلوك المقبول: يُمنع نشر تعليقات مسيئة، عنصرية، أو ترويجية غير مصرح بها في قسم التقييمات.
+
+الملكية الفكرية: جميع الصور والنصوص والشعارات الخاصة بموقع "شنو ناكل" هي ملك للموقع ولا يجوز استخدامها تجارياً دون إذن.
+
+التعديلات: يحق للموقع تغيير هذه الشروط في أي وقت، واستمرارك في الاستخدام يعني موافقتك عليها.`;
+
+const DEFAULT_PRIVACY = `2. سياسة الخصوصية (Privacy Policy)
+
+البيانات التي نجمعها:
+
+بيانات اختيارية: مثل الاسم، البريد الإلكتروني، أو الصور عند التسجيل أو كتابة تقييم.
+
+بيانات تقنية: مثل ملفات تعريف الارتباط (Cookies)، وعنوان الـ IP لتحسين تجربة المستخدم وتحليل الزيارات.
+
+كيفية استخدام البيانات: نستخدم بياناتك لتحسين اقتراحات الطعام.
+
+مشاركة البيانات: نؤكد أننا لا نبيع بياناتك الشخصية لأطراف ثالثة. قد نشارك بيانات مجهولة الهوية لأغراض إحصائية فقط.
+
+روابط الطرف الثالث: قد يحتوي الموقع على روابط لمطاعم أو تطبيقات توصيل؛ نحن غير مسؤولين عن سياسة الخصوصية لتلك المواقع الخارجية.`;
+
 const LegalPagesEditor = () => {
     const { t } = useLanguage();
     const [terms, setTerms] = useState<LegalPage | null>(null);
@@ -41,14 +67,19 @@ const LegalPagesEditor = () => {
             const termsPage = data?.find(p => p.page_type === "terms");
             const privacyPage = data?.find(p => p.page_type === "privacy");
 
-            setTerms(termsPage as any || null);
-            setPrivacy(privacyPage as any || null);
+            // Use fetched data or fallback to defaults (as new objects ready to insert/update)
+            setTerms(termsPage as any || { id: "new_terms", page_type: "terms", content: DEFAULT_TERMS, content_en: "", updated_at: new Date().toISOString() });
+            setPrivacy(privacyPage as any || { id: "new_privacy", page_type: "privacy", content: DEFAULT_PRIVACY, content_en: "", updated_at: new Date().toISOString() });
+
         } catch (error) {
             console.error("Error fetching pages:", error);
+            // Fallback on error too
+            setTerms({ id: "new_terms", page_type: "terms", content: DEFAULT_TERMS, content_en: "", updated_at: new Date().toISOString() });
+            setPrivacy({ id: "new_privacy", page_type: "privacy", content: DEFAULT_PRIVACY, content_en: "", updated_at: new Date().toISOString() });
+
             toast({
-                title: t("خطأ", "Error"),
-                description: t("فشل في تحميل الصفحات", "Failed to load pages"),
-                variant: "destructive"
+                title: t("تنبيه", "Notice"),
+                description: t("تم تحميل المحتوى الافتراضي", "Loaded default content"),
             });
         } finally {
             setIsLoading(false);
@@ -61,14 +92,36 @@ const LegalPagesEditor = () => {
             const page = pageType === "terms" ? terms : privacy;
             if (!page) return;
 
-            const { error } = await supabase
+            // Check if it exists first to decide Insert vs Update
+            const { data: existing } = await supabase
                 .from("legal_pages")
-                .update({
-                    content: page.content,
-                    content_en: page.content_en,
-                    updated_at: new Date().toISOString()
-                })
-                .eq("page_type", pageType);
+                .select("id")
+                .eq("page_type", pageType)
+                .single();
+
+            let error;
+
+            if (existing) {
+                const { error: updateError } = await supabase
+                    .from("legal_pages")
+                    .update({
+                        content: page.content,
+                        content_en: page.content_en,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq("page_type", pageType);
+                error = updateError;
+            } else {
+                const { error: insertError } = await supabase
+                    .from("legal_pages")
+                    .insert([{
+                        page_type: pageType,
+                        content: page.content,
+                        content_en: page.content_en,
+                        updated_at: new Date().toISOString()
+                    }]);
+                error = insertError;
+            }
 
             if (error) throw error;
 

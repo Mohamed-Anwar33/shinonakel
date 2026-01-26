@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, ArrowLeft, Loader2, Star, Heart, Phone, MapPin, Globe } from "lucide-react";
 import CompactRestaurantCard from "@/components/CompactRestaurantCard";
 import BottomNav from "@/components/BottomNav";
-import LeafletMapView from "@/components/LeafletMapView";
+import GoogleMapView from "@/components/GoogleMapView";
 import ViewToggle from "@/components/ViewToggle";
 import GuestSignInPrompt from "@/components/GuestSignInPrompt";
 import UnifiedRestaurantDetail from "@/components/UnifiedRestaurantDetail";
@@ -225,7 +225,9 @@ const Results = () => {
       const ratingCount = ratings.length;
 
       const primaryBranch =
-        r.branches?.find((b) => b.latitude != null && b.longitude != null) ?? r.branches?.[0];
+        r.branches?.find((b) => b.google_maps_url) ??
+        r.branches?.find((b) => b.latitude != null && b.longitude != null) ??
+        r.branches?.[0];
       const address = primaryBranch?.address || "";
       const mapsUrl = primaryBranch?.google_maps_url || null;
 
@@ -353,12 +355,6 @@ const Results = () => {
     try {
       if (isSaved) {
         const { error } = await supabase
-          .from("saved_restaurants")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("name", restaurant.name);
-
-        if (error) throw error;
 
         setSavedRestaurantIds(prev => prev.filter(name => name !== restaurant.name));
         toast({
@@ -400,13 +396,20 @@ const Results = () => {
       window.open(restaurant.mapsUrl, '_blank', 'noopener,noreferrer');
     } else if (restaurant.latitude && restaurant.longitude) {
       window.open(`https://www.google.com/maps/search/?api=1&query=${restaurant.latitude},${restaurant.longitude}`, '_blank', 'noopener,noreferrer');
+    } else {
+      const searchQuery = encodeURIComponent(restaurant.name);
+      window.open(`https://www.google.com/maps/search/${searchQuery}`, '_blank', 'noopener,noreferrer');
     }
   };
 
   // Get featured restaurant - either selected one or first one
-  const featuredRestaurant = selectedRestaurantId
-    ? filteredRestaurants.find(r => r.id === selectedRestaurantId) || filteredRestaurants[0]
-    : filteredRestaurants[0] || null;
+  // Get featured restaurant - either selected one or first one. 
+  // If Near By is active, we force the first result (which is nearest).
+  const featuredRestaurant = filterNearby
+    ? (filteredRestaurants.length > 0 ? filteredRestaurants[0] : null)
+    : (selectedRestaurantId
+      ? filteredRestaurants.find(r => r.id === selectedRestaurantId) || filteredRestaurants[0]
+      : filteredRestaurants[0] || null);
 
   const moreRestaurants = filteredRestaurants.filter(r => r.id !== featuredRestaurant?.id);
 
@@ -431,17 +434,17 @@ const Results = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/10 via-background to-background pb-24" dir={language === "ar" ? "rtl" : "ltr"}>
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-gradient-to-b from-primary/10 to-transparent backdrop-blur-sm">
+      {/* Header with Primary Color like Admin Panel */}
+      <header className="sticky top-0 z-40 bg-primary/95 backdrop-blur-sm shadow-md">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
           <button
             onClick={() => navigate("/")}
-            className="w-10 h-10 rounded-full bg-card flex items-center justify-center shadow-soft"
+            className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
           >
-            {language === "ar" ? <ArrowRight className="w-5 h-5 text-foreground" /> : <ArrowLeft className="w-5 h-5 text-foreground" />}
+            {language === "ar" ? <ArrowRight className="w-5 h-5 text-white" /> : <ArrowLeft className="w-5 h-5 text-white" />}
           </button>
 
-          <h1 className="font-bold text-lg">{t("نتيجة الاختيار", "Choice Result")}</h1>
+          <h1 className="font-bold text-lg text-white">{t("نتيجة الاختيار", "Choice Result")}</h1>
 
           <ViewToggle view={viewMode} onChange={setViewMode} />
         </div>
@@ -506,10 +509,10 @@ const Results = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
               >
-                <LeafletMapView
+                <GoogleMapView
                   restaurants={filteredRestaurants}
                   userLocation={userLat && userLon ? { lat: userLat, lng: userLon } : null}
-                  onRestaurantClick={handleRestaurantClick}
+                  category={category}
                 />
               </motion.div>
             ) : (
@@ -537,12 +540,14 @@ const Results = () => {
                           className="w-full h-full object-cover"
                         />
 
-                        {/* Ad Badge - Inside Image */}
-                        <div className="absolute top-3 right-3">
-                          <span className="px-3 py-1 bg-accent text-accent-foreground text-xs font-bold rounded-full shadow-soft">
-                            {t("إعلان مثبت", "Pinned Ad")}
-                          </span>
-                        </div>
+                        {/* Ad Badge - Inside Image - Hide when using nearby filter */}
+                        {!filterNearby && (
+                          <div className="absolute top-3 right-3">
+                            <span className="px-3 py-1 bg-accent text-accent-foreground text-xs font-bold rounded-full shadow-soft">
+                              {t("إعلان مدفوع", "Sponsored")}
+                            </span>
+                          </div>
+                        )}
 
                         {/* Favorite Button - Inside Image */}
                         <button
@@ -579,14 +584,12 @@ const Results = () => {
 
                         {/* Left Side - Phone & Location Icons */}
                         <div className="flex items-center gap-2">
-                          {(featuredRestaurant.mapsUrl || (featuredRestaurant.latitude && featuredRestaurant.longitude)) && (
-                            <button
-                              onClick={() => handleMapClick(featuredRestaurant)}
-                              className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center"
-                            >
-                              <MapPin className="w-5 h-5 text-primary" />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => handleMapClick(featuredRestaurant)}
+                            className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center"
+                          >
+                            <MapPin className="w-5 h-5 text-primary" />
+                          </button>
                           {featuredRestaurant.phone && (
                             <a
                               href={`tel:${featuredRestaurant.phone}`}
@@ -653,7 +656,7 @@ const Results = () => {
                             deliveryApps={restaurant.deliveryApps}
                             isFavorite={savedRestaurantIds.includes(restaurant.name)}
                             onFavoriteClick={() => toggleFavorite(restaurant)}
-                            onMapClick={(restaurant.mapsUrl || (restaurant.latitude && restaurant.longitude)) ? () => handleMapClick(restaurant) : undefined}
+                            onMapClick={() => handleMapClick(restaurant)}
                             onClick={() => handleRestaurantClick(restaurant)}
                           />
                         </motion.div>
@@ -682,7 +685,7 @@ const Results = () => {
         }}
         restaurant={selectedRestaurantData}
       />
-    </div>
+    </div >
   );
 };
 

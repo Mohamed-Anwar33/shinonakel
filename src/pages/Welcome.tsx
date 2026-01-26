@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, User, Eye, EyeOff, Phone } from "lucide-react";
@@ -31,6 +31,17 @@ const Welcome = () => {
   const [otp, setOtp] = useState("");
   const [pendingUsername, setPendingUsername] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
+
+  // Load saved credentials on mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('savedEmail');
+    const savedRememberMe = localStorage.getItem('rememberMe');
+
+    if (savedRememberMe === 'true' && savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const validateUsername = (value: string): boolean => {
     const englishOnlyRegex = /^[a-zA-Z0-9_]+$/;
@@ -293,7 +304,6 @@ const Welcome = () => {
       });
 
       if (error) throw error;
-
       toast({
         title: t("تم إعادة الإرسال", "Resent"),
         description: t("تفقد بريدك الإلكتروني", "Check your email")
@@ -447,7 +457,7 @@ const Welcome = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             onSubmit={handleAuth}
-            className="space-y-3"
+            className="space-y-2"
           >
             {mode === "signup" && (
               <>
@@ -519,14 +529,13 @@ const Welcome = () => {
                 required
               />
             )}
-
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
                 placeholder={t("كلمة المرور", "Password")}
                 value={password}
                 onChange={handlePasswordChange}
-                className={`h-12 text-base [&::-ms-reveal]:hidden [&::-webkit-credentials-auto-fill-button]:hidden ${language === "ar" ? "pr-12" : "pl-12"}`}
+                className="h-12 text-base [&::-ms-reveal]:hidden [&::-webkit-credentials-auto-fill-button]:hidden"
                 required
                 autoComplete="new-password"
               />
@@ -620,17 +629,19 @@ const Welcome = () => {
                     {t("تسجيل الدخول", "Sign in")}
                   </button>
                 </p>
-                <p className="text-center text-xs text-muted-foreground mt-4">
-                  {t("بإنشاء حساب، أنت توافق على", "By creating an account, you agree to our")}{" "}
-                  <Link to="/terms" className="text-primary hover:underline">
-                    {t("شروط الاستخدام", "Terms of Service")}
-                  </Link>
-                  {" "}{t("و", "and")}{" "}
-                  <Link to="/privacy" className="text-primary hover:underline">
-                    {t("سياسة الخصوصية", "Privacy Policy")}
-                  </Link>
-                </p>
               </>
+            )}
+            {mode === "signup" && (
+              <p className="text-xs text-muted-foreground text-center">
+                {t("بالتسجيل، أنت توافق على", "By signing up, you agree to our")}{" "}
+                <Link to="/legal?tab=terms" className="text-primary hover:underline">
+                  {t("شروط الاستخدام", "Terms of Service")}
+                </Link>{" "}
+                {t("و", "and")}{" "}
+                <Link to="/legal?tab=privacy" className="text-primary hover:underline">
+                  {t("سياسة الخصوصية", "Privacy Policy")}
+                </Link>
+              </p>
             )}
           </motion.form>
         )}

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Star, Heart } from "lucide-react";
+import { Star, Heart, MapPin } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface DeliveryApp {
@@ -14,10 +14,12 @@ interface FeaturedRestaurantCardProps {
   rating: number;
   distance: string;
   cuisine: string;
+  mapUrl?: string | null;
   deliveryApps: DeliveryApp[];
   isFavorite?: boolean;
   isSponsored?: boolean;
   onFavoriteClick?: () => void;
+  onMapClick?: () => void;
   onClick?: () => void;
 }
 
@@ -27,10 +29,12 @@ const FeaturedRestaurantCard = ({
   rating,
   distance,
   cuisine,
+  mapUrl,
   deliveryApps,
   isFavorite = false,
   isSponsored = false,
   onFavoriteClick,
+  onMapClick,
   onClick,
 }: FeaturedRestaurantCardProps) => {
   const { t, language } = useLanguage();
@@ -56,21 +60,43 @@ const FeaturedRestaurantCard = ({
               {t("مفتوح الآن", "Open Now")}
             </span>
           </div>
-          
-          {/* Favorite Button */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onFavoriteClick?.();
-            }}
-            className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-soft"
-          >
-            <Heart
-              className={`w-5 h-5 transition-colors ${
-                isFavorite ? "fill-primary text-primary" : "text-muted-foreground"
-              }`}
-            />
-          </button>
+
+          {/* Action Buttons: Favorite & Location */}
+          <div className="flex items-center gap-2">
+            {/* Favorite Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onFavoriteClick?.();
+              }}
+              className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-soft"
+            >
+              <Heart
+                className={`w-5 h-5 transition-colors ${isFavorite ? "fill-primary text-primary" : "text-muted-foreground"
+                  }`}
+              />
+            </button>
+
+            {/* Location Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onMapClick) {
+                  onMapClick();
+                } else if (mapUrl) {
+                  const url = mapUrl.startsWith('http') ? mapUrl : `https://${mapUrl}`;
+                  window.open(url, '_blank', 'noopener,noreferrer');
+                } else {
+                  const searchQuery = encodeURIComponent(name);
+                  // Force search internally in Google Maps
+                  window.open(`https://www.google.com/maps/search/?api=1&query=${searchQuery}`, '_blank', 'noopener,noreferrer');
+                }
+              }}
+              className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-soft"
+            >
+              <MapPin className="w-5 h-5 text-primary" />
+            </button>
+          </div>
         </div>
 
         {/* Main Image */}
@@ -80,7 +106,7 @@ const FeaturedRestaurantCard = ({
             alt={name}
             className="w-full h-full object-cover"
           />
-          
+
           {/* Rating Badge */}
           <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-soft">
             <Star className="w-4 h-4 fill-accent text-accent" />
@@ -122,7 +148,7 @@ const FeaturedRestaurantCard = ({
           </div>
         )}
       </div>
-    </motion.div>
+    </motion.div >
   );
 };
 

@@ -94,10 +94,11 @@ interface ContactRequest {
 }
 
 const ADMIN_PERMISSIONS = [
-  { id: "manage_restaurants", label: "إدارة المطاعم" },
-  { id: "manage_ads", label: "إدارة الإعلانات" },
-  { id: "view_statistics", label: "عرض الإحصائيات" },
+  { id: "weekly_picks", label: "الأكثر رواجاً" },
+  { id: "ads", label: "الإعلانات" },
+  { id: "users", label: "المستخدمين" },
   { id: "manage_admins", label: "إدارة المشرفين" },
+  { id: "legal_pages", label: "الصفحات القانونية" },
 ];
 
 const Admin = () => {
@@ -120,6 +121,7 @@ const Admin = () => {
   const [restaurantPhone, setRestaurantPhone] = useState("");
   const [restaurantWebsite, setRestaurantWebsite] = useState("");
   const [restaurantImage, setRestaurantImage] = useState("");
+  const [restaurantImageUrlInput, setRestaurantImageUrlInput] = useState(""); // For manual URL entry
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [branches, setBranches] = useState<{ mapsUrl: string; latitude: string; longitude: string }[]>([
@@ -285,8 +287,8 @@ const Admin = () => {
     setIsUploadingImage(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
-      const filePath = `restaurant-images/${fileName}`;
+      const fileName = `${crypto.randomUUID()}.${fileExt} `;
+      const filePath = `restaurant - images / ${fileName} `;
 
       const { error: uploadError } = await supabase.storage
         .from('restaurant-images')
@@ -406,7 +408,7 @@ const Admin = () => {
           cuisines: restaurantCuisines,
           phone: restaurantPhone || null,
           website: restaurantWebsite || null,
-          image_url: restaurantImage || null,
+          image_url: restaurantImage || restaurantImageUrlInput || null,
           created_by: user?.id,
         })
         .select()
@@ -420,8 +422,8 @@ const Admin = () => {
         const branchesData = validBranches.map((b) => ({
           restaurant_id: restaurant.id,
           google_maps_url: b.mapsUrl || null,
-          latitude: b.latitude ? parseFloat(b.latitude) : null,
-          longitude: b.longitude ? parseFloat(b.longitude) : null,
+          latitude: null, // Removed latitude input
+          longitude: null, // Removed longitude input
         }));
 
         const { error: branchError } = await supabase.from("restaurant_branches").insert(branchesData);
@@ -452,6 +454,7 @@ const Admin = () => {
       setRestaurantPhone("");
       setRestaurantWebsite("");
       setRestaurantImage("");
+      setRestaurantImageUrlInput("");
       setImageFile(null);
       setBranches([{ mapsUrl: "", latitude: "", longitude: "" }]);
       setSelectedDeliveryApps([]);
@@ -891,8 +894,8 @@ const Admin = () => {
         const branchesData = validBranches.map((b) => ({
           restaurant_id: editingRestaurant.id,
           google_maps_url: b.mapsUrl || null,
-          latitude: b.latitude ? parseFloat(b.latitude) : null,
-          longitude: b.longitude ? parseFloat(b.longitude) : null,
+          latitude: null, // Removed latitude input
+          longitude: null, // Removed longitude input
         }));
 
         const { error: branchError } = await supabase
@@ -1336,54 +1339,98 @@ const Admin = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Image Upload */}
                     <div className="space-y-2 order-2 md:order-1">
-                      <Label className="text-right block">صورة المطعم</Label>
-                      <div className="flex gap-4 items-start flex-row-reverse">
-                        {restaurantImage && (
-                          <div className="relative">
-                            <img
-                              src={restaurantImage}
-                              alt="Restaurant preview"
-                              className="w-20 h-20 rounded-lg object-cover"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setRestaurantImage("")}
-                              className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <input
+                      <Label htmlFor="image" className="text-right block">صورة المطعم</Label>
+                      <div className="flex flex-col gap-4">
+                        {/* File Upload */}
+                        <div className="flex items-center gap-2">
+                          <Input
                             ref={fileInputRef}
+                            id="image"
                             type="file"
                             accept="image/*"
-                            onChange={handleFileChange}
                             className="hidden"
+                            onChange={handleFileChange}
                           />
                           <Button
                             type="button"
                             variant="outline"
+                            className="w-full bg-accent hover:bg-accent/90 text-accent-foreground border-none h-12 text-lg font-bold shadow-soft hover:shadow-elevated transition-all duration-300"
                             onClick={() => fileInputRef.current?.click()}
                             disabled={isUploadingImage}
-                            className="w-full"
                           >
                             {isUploadingImage ? (
                               <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary ml-2"></div>
+                                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin ml-2" />
                                 جاري الرفع...
                               </>
                             ) : (
                               <>
-                                <Upload className="w-4 h-4 ml-2" />
+                                <Upload className="w-5 h-5 ml-2" />
                                 رفع صورة
                               </>
                             )}
                           </Button>
                         </div>
+
+                        <div className="relative">
+                          <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t" />
+                          </div>
+                          <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-background px-2 text-muted-foreground">
+                              أو
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* URL Input */}
+                        <div className="space-y-2">
+                          <Label htmlFor="imageUrl" className="text-right block">رابط الصورة (اختياري)</Label>
+                          <Input
+                            id="imageUrl"
+                            placeholder="https://example.com/image.jpg"
+                            value={restaurantImageUrlInput}
+                            onChange={(e) => {
+                              setRestaurantImageUrlInput(e.target.value);
+                              // Clear file upload if URL is entered to avoid confusion, or keep both but prioritize one
+                              if (e.target.value) {
+                                setRestaurantImage("");
+                                if (fileInputRef.current) fileInputRef.current.value = "";
+                              }
+                            }}
+                            dir="ltr"
+                          />
+                        </div>
+
+                        {/* Preview */}
+                        {(restaurantImage || restaurantImageUrlInput) && (
+                          <div className="mt-2 relative w-full h-48 rounded-xl overflow-hidden border border-border shadow-sm group">
+                            <img
+                              src={restaurantImage || restaurantImageUrlInput}
+                              alt="Preview"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = "/placeholder.svg";
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon"
+                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => {
+                                setRestaurantImage("");
+                                setRestaurantImageUrlInput("");
+                                if (fileInputRef.current) fileInputRef.current.value = "";
+                              }}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
+
                     <div className="space-y-2 order-1 md:order-2">
                       <Label htmlFor="phone" className="text-right block">رقم الاتصال</Label>
                       <Input
@@ -1452,36 +1499,8 @@ const Admin = () => {
                             </p>
                           )}
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <Label htmlFor={`lat-${index}`} className="text-right block text-xs">خط العرض (Latitude)</Label>
-                            <Input
-                              id={`lat-${index}`}
-                              placeholder="24.7136"
-                              value={branch.latitude}
-                              onChange={(e) => handleBranchChange(index, "latitude", e.target.value)}
-                              className="text-left"
-                              dir="ltr"
-                              type="number"
-                              step="any"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label htmlFor={`lng-${index}`} className="text-right block text-xs">خط الطول (Longitude)</Label>
-                            <Input
-                              id={`lng-${index}`}
-                              placeholder="46.6753"
-                              value={branch.longitude}
-                              onChange={(e) => handleBranchChange(index, "longitude", e.target.value)}
-                              className="text-left"
-                              dir="ltr"
-                              type="number"
-                              step="any"
-                            />
-                          </div>
-                        </div>
                         <p className="text-xs text-muted-foreground text-right" dir="rtl">
-                          💡 يمكنك إدخال خط الطول والعرض أو رابط Google Maps (أو كليهما)
+                          💡 أدخل رابط Google Maps للموقع
                         </p>
                       </div>
                     ))}
@@ -1630,6 +1649,11 @@ const Admin = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Legal Pages Tab */}
+          <TabsContent value="legal_pages" className="space-y-6">
+            <LegalPagesEditor />
           </TabsContent>
 
           {/* Ads Tab */}
@@ -2295,42 +2319,14 @@ const Admin = () => {
                       </p>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label htmlFor={`edit-lat-${index}`} className="text-right block text-xs">خط العرض (Latitude)</Label>
-                      <Input
-                        id={`edit-lat-${index}`}
-                        placeholder="24.7136"
-                        value={branch.latitude}
-                        onChange={(e) => handleEditBranchChange(index, "latitude", e.target.value)}
-                        className="text-left"
-                        dir="ltr"
-                        type="number"
-                        step="any"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor={`edit-lng-${index}`} className="text-right block text-xs">خط الطول (Longitude)</Label>
-                      <Input
-                        id={`edit-lng-${index}`}
-                        placeholder="46.6753"
-                        value={branch.longitude}
-                        onChange={(e) => handleEditBranchChange(index, "longitude", e.target.value)}
-                        className="text-left"
-                        dir="ltr"
-                        type="number"
-                        step="any"
-                      />
-                    </div>
-                  </div>
                   <p className="text-xs text-muted-foreground text-right" dir="rtl">
-                    💡 يمكنك إدخال خط الطول والعرض أو رابط Google Maps (أو كليهما)
+                    💡 أدخل رابط Google Maps للموقع
                   </p>
                 </div>
               ))}
             </div>
 
-            {/* Delivery Apps Section */}
+            {/* Delivery Apps Section  */}
             <div className="space-y-3">
               <Label className="text-right block">تطبيقات التوصيل</Label>
               <div className="flex flex-wrap gap-2">

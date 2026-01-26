@@ -127,8 +127,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Store remember me preference for UI state
     if (rememberMe) {
       localStorage.setItem("rememberMe", "true");
+      localStorage.setItem("savedEmail", email);
     } else {
       localStorage.removeItem("rememberMe");
+      localStorage.removeItem("savedEmail");
     }
   };
 

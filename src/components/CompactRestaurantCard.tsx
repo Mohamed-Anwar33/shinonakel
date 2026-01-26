@@ -13,6 +13,7 @@ interface CompactRestaurantCardProps {
   image: string;
   rating: number;
   distance: string;
+  mapUrl?: string | null;
   deliveryApps: DeliveryApp[];
   isFavorite?: boolean;
   onFavoriteClick?: () => void;
@@ -26,6 +27,7 @@ const CompactRestaurantCard = ({
   image,
   rating,
   distance,
+  mapUrl,
   deliveryApps,
   isFavorite = false,
   onFavoriteClick,
@@ -54,23 +56,30 @@ const CompactRestaurantCard = ({
           className="p-1"
         >
           <Heart
-            className={`w-5 h-5 transition-colors ${
-              isFavorite ? "fill-primary text-primary" : "text-muted-foreground"
-            }`}
+            className={`w-5 h-5 transition-colors ${isFavorite ? "fill-primary text-primary" : "text-muted-foreground"
+              }`}
           />
         </button>
 
-        {onMapClick && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onMapClick?.();
-            }}
-            className="p-1.5 rounded-full bg-primary/10 hover:bg-primary/20 transition-colors"
-          >
-            <MapPin className="w-4 h-4 text-primary" />
-          </button>
-        )}
+        {/* Always show map icon - opens Google Maps search */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onMapClick) {
+              onMapClick();
+            } else if (mapUrl) {
+              const url = mapUrl.startsWith('http') ? mapUrl : `https://${mapUrl}`;
+              window.open(url, '_blank', 'noopener,noreferrer');
+            } else {
+              // Open Google Maps with restaurant name search
+              const searchQuery = encodeURIComponent(name);
+              window.open(`https://www.google.com/maps/search/?api=1&query=${searchQuery}`, '_blank', 'noopener,noreferrer');
+            }
+          }}
+          className="p-1.5 rounded-full bg-primary/10 hover:bg-primary/20 transition-colors"
+        >
+          <MapPin className="w-4 h-4 text-primary" />
+        </button>
       </div>
 
       {/* Content: Name, Cuisine, Delivery Apps */}
@@ -79,7 +88,7 @@ const CompactRestaurantCard = ({
         {cuisine && (
           <p className="text-xs text-muted-foreground mb-2">{cuisine}</p>
         )}
-        
+
         {/* Delivery Apps */}
         {deliveryApps.length > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap flex-row-reverse justify-end">
