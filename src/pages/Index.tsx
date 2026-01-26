@@ -388,9 +388,8 @@ const Index = () => {
                   const searchQuery = encodeURIComponent(restaurant.name);
                   window.open(`https://www.google.com/maps/search/${searchQuery}`, '_blank', 'noopener,noreferrer');
                 }
-              }} className="w-full h-8 rounded-lg bg-primary/10 hover:bg-primary/20 inline-flex items-center justify-center gap-2 transition-colors text-primary text-center">
+              }} className="w-8 h-8 rounded-full bg-primary/10 hover:bg-primary/20 inline-flex items-center justify-center transition-colors text-primary mx-auto">
                       <MapPin className="w-4 h-4" />
-                      
                     </button>
                   </div>
                 </motion.div>)}
