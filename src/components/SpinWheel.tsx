@@ -235,25 +235,18 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
                         stroke="white"
                         strokeWidth="0.5"
                       />
-                      {/* Emoji (robust centering across emoji glyphs) */}
-                      <foreignObject x={textX - 6} y={textY - 6} width={12} height={12}>
-                        <div
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '14px',
-                            lineHeight: '1',
-                            color: 'white',
-                            fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif',
-                            userSelect: 'none',
-                          }}
-                        >
-                          {category.icon}
-                        </div>
-                      </foreignObject>
+                      {/* Emoji only */}
+                      <text
+                        x={textX}
+                        y={textY}
+                        dy="0.35em"
+                        textAnchor="middle"
+                        fill="white"
+                        fontSize="10"
+                        style={{ fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif' }}
+                      >
+                        {category.icon}
+                      </text>
                     </g>
                   );
                 })}
