@@ -241,6 +241,7 @@ const UnifiedRestaurantDetail = ({
           address: restaurant.address || null
         });
         setIsFavorite(true);
+        toast({ title: t("تم الحفظ", "Saved"), description: t("تم إضافة المطعم إلى قائمتك", "Restaurant added to your list") });
       }
     } catch (error: any) {
       toast({ title: t("خطأ", "Error"), description: error.message, variant: "destructive" });

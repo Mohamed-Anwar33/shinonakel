@@ -217,6 +217,10 @@ const RestaurantDetailPage = () => {
           });
 
         setIsFavorite(true);
+        toast({
+          title: t("تم الحفظ", "Saved"),
+          description: t("تم إضافة المطعم إلى قائمتك", "Restaurant added to your list")
+        });
       }
     } catch (error: any) {
       toast({

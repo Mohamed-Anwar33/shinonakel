@@ -307,6 +307,7 @@ const ResultModal = ({ isOpen, onClose, category }: ResultModalProps) => {
           address: adRestaurant.branches?.[0]?.address || null
         });
         setIsFavorite(true);
+        toast.success(t("تم إضافة المطعم لقائمتي", "Restaurant added to my list"));
       }
     } catch (error) {
       toast.error(t("حدث خطأ، حاول مرة أخرى", "An error occurred, please try again"));
