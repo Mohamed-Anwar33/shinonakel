@@ -256,10 +256,6 @@ const Index = () => {
         });
         if (error) throw error;
         setSavedRestaurantIds(prev => [...prev, restaurant.name]);
-        toast({
-          title: t("تم الحفظ", "Saved"),
-          description: t("تم إضافة المطعم إلى قائمتك", "Restaurant added to your list")
-        });
       }
     } catch (error: any) {
       toast({
