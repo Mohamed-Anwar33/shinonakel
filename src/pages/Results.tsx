@@ -411,10 +411,10 @@ const Results = () => {
         if (error) throw error;
 
         setSavedRestaurantIds(prev => [...prev, restaurant.name]);
-        toast({
+        /* toast({
           title: t("تم الحفظ", "Saved"),
           description: t("تم إضافة المطعم إلى قائمتك", "Restaurant added to your list")
-        });
+        }); */
       }
     } catch (error: any) {
       toast({
@@ -485,29 +485,7 @@ const Results = () => {
       </header>
 
       <main className="max-w-md mx-auto px-4 pt-6">
-        {/* Filters - Hide in Map View */}
-        {viewMode === "list" && (
-          <div className="flex items-center gap-2 mb-4">
-            <button
-              onClick={() => setFilterNearby(!filterNearby)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${filterNearby
-                ? "bg-primary text-primary-foreground shadow-soft"
-                : "bg-card text-foreground border border-border"
-                }`}
-            >
-              {t("الأقرب", "Nearby")} 📍
-            </button>
-            <button
-              onClick={() => setFilterNewest(!filterNewest)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${filterNewest
-                ? "bg-primary text-primary-foreground shadow-soft"
-                : "bg-card text-foreground border border-border"
-                }`}
-            >
-              {t("الأحدث", "Newest")} ⏰
-            </button>
-          </div>
-        )}
+
 
         {/* Hero Emoji */}
         <div className="text-center mb-6 pt-4">
@@ -521,11 +499,37 @@ const Results = () => {
 
           {/* Cuisine Name Badge */}
           <div className="mt-3">
-            <span className="inline-block px-6 py-2 bg-card border-2 border-border rounded-full text-lg font-bold shadow-soft">
+            <span className="inline-flex items-center justify-center px-6 py-2 bg-card border-2 border-border rounded-full text-lg font-bold shadow-soft">
               {categoryDisplay}
             </span>
           </div>
         </div>
+
+        {/* Filters - Hide in Map View */}
+        {viewMode === "list" && (
+          <div className="flex items-center gap-2 mb-8">
+            <button
+              onClick={() => setFilterNearby(!filterNearby)}
+              className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${filterNearby
+                ? "bg-primary text-primary-foreground shadow-soft"
+                : "bg-card text-foreground border border-border"
+                }`}
+            >
+              <span>{t("الأقرب", "Nearby")}</span>
+              <span>📍</span>
+            </button>
+            <button
+              onClick={() => setFilterNewest(!filterNewest)}
+              className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${filterNewest
+                ? "bg-primary text-primary-foreground shadow-soft"
+                : "bg-card text-foreground border border-border"
+                }`}
+            >
+              <span>{t("الأحدث", "Newest")}</span>
+              <span>⏰</span>
+            </button>
+          </div>
+        )}
 
         {/* Results Content */}
         {isLoading ? (
@@ -579,7 +583,7 @@ const Results = () => {
                         {/* Ad Badge - Inside Image - Hide when using nearby filter */}
                         {!filterNearby && (
                           <div className="absolute top-3 right-3">
-                            <span className="px-3 py-1 bg-accent text-accent-foreground text-xs font-bold rounded-full shadow-soft">
+                            <span className="inline-flex items-center justify-center px-3 py-1 bg-accent text-accent-foreground text-xs font-bold rounded-full shadow-soft">
                               {t("إعلان مدفوع", "Sponsored")}
                             </span>
                           </div>
@@ -600,9 +604,9 @@ const Results = () => {
                         </button>
 
                         {/* Rating Badge */}
-                        <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-soft">
+                        <div className="absolute bottom-3 left-3 inline-flex items-center justify-center gap-1 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-soft">
                           <Star className="w-4 h-4 fill-accent text-accent" />
-                          <span className="text-sm font-bold">{featuredRestaurant.rating.toFixed(1)}</span>
+                          <span className="text-sm font-bold leading-none pt-0.5">{featuredRestaurant.rating.toFixed(1)}</span>
                         </div>
                       </div>
 
@@ -640,7 +644,7 @@ const Results = () => {
                       {/* Delivery Apps Section */}
                       {featuredRestaurant.deliveryApps.length > 0 && (
                         <div className="bg-card rounded-2xl p-4 shadow-soft">
-                          <p className="text-xs text-muted-foreground text-center mb-3">
+                          <p className="text-xs text-muted-foreground text-center mb-3 font-bold">
                             {t("اطلب الآن عبر التطبيقات", "Order now via apps")}
                           </p>
                           <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -652,7 +656,7 @@ const Results = () => {
                                     window.open(app.url, '_blank', 'noopener,noreferrer');
                                   }
                                 }}
-                                className="px-4 py-2 rounded-full text-sm font-bold border-2 bg-white transition-transform hover:scale-105"
+                                className="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-extrabold border-2 bg-white transition-transform hover:scale-105"
                                 style={{ borderColor: app.color, color: app.color }}
                               >
                                 {app.name}

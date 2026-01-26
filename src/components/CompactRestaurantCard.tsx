@@ -43,8 +43,8 @@ const CompactRestaurantCard = ({
     >
       {/* Left Side: Rating, Heart, Map (Vertical) */}
       <div className="flex flex-col items-center gap-2 shrink-0">
-        <div className="flex items-center gap-1 bg-amber-100 px-2 py-0.5 rounded-lg">
-          <span className="text-xs font-bold">{rating.toFixed(1)}</span>
+        <div className="inline-flex items-center justify-center gap-1 bg-amber-100 px-2 py-0.5 rounded-lg">
+          <span className="text-xs font-bold leading-none pt-0.5">{rating.toFixed(1)}</span>
           <Star className="w-3 h-3 fill-accent text-accent" />
         </div>
 
@@ -53,7 +53,7 @@ const CompactRestaurantCard = ({
             e.stopPropagation();
             onFavoriteClick?.();
           }}
-          className="p-1"
+          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-secondary/50 transition-colors"
         >
           <Heart
             className={`w-5 h-5 transition-colors ${isFavorite ? "fill-primary text-primary" : "text-muted-foreground"
@@ -76,7 +76,7 @@ const CompactRestaurantCard = ({
               window.open(`https://www.google.com/maps/search/?api=1&query=${searchQuery}`, '_blank', 'noopener,noreferrer');
             }
           }}
-          className="p-1.5 rounded-full bg-primary/10 hover:bg-primary/20 transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-full bg-primary/10 hover:bg-primary/20 transition-colors"
         >
           <MapPin className="w-4 h-4 text-primary" />
         </button>
@@ -102,7 +102,7 @@ const CompactRestaurantCard = ({
                     window.open(url, '_blank', 'noopener,noreferrer');
                   }
                 }}
-                className="px-2 py-0.5 rounded-full text-[10px] font-semibold border hover:opacity-80 transition-opacity"
+                className="inline-flex items-center justify-center px-2 py-1 rounded-full text-[10px] font-bold border hover:opacity-80 transition-opacity min-w-[50px]"
                 style={{ borderColor: app.color, color: app.color }}
               >
                 {app.name}

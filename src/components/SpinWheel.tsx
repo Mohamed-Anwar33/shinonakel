@@ -115,9 +115,11 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
     if (isSpinning) return;
 
     setIsSpinning(true);
-    const spinDuration = 800; // 0.8 second total duration - faster spin
-    const rotations = 2; // Number of full rotations before stopping
-    const extraDegrees = Math.random() * 360;
+    // Increased rotations for a longer, smoother spin
+    const rotations = 5;
+    // If we are in single category view (not "الكل"), we want to land upright (multiple of 360)
+    // Otherwise, for "الكل", we land on a random segment
+    const extraDegrees = selectedCategory === "الكل" ? Math.random() * 360 : 0;
     const totalRotation = rotations * 360 + extraDegrees;
 
     // Calculate new rotation value BEFORE setting state
@@ -142,7 +144,7 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
         onResult(selectedCategory);
       }
       setIsSpinning(false);
-    }, 1000); // 1.0 ثانية فقط!
+    }, 3000); // Wait 3 seconds for animation to finish
   };
 
   const segmentAngle = 360 / displayCategories.length;
@@ -186,9 +188,9 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
           <motion.div
             ref={wheelRef}
             className="w-full h-full rounded-full overflow-hidden shadow-elevated relative"
-            style={{ rotate: singleCategoryView ? 0 : rotation }}
-            animate={{ rotate: singleCategoryView ? 0 : rotation }}
-            transition={{ duration: 1.5, ease: [0.25, 0.8, 0.25, 1] }}
+            style={{ rotate: rotation }}
+            animate={{ rotate: rotation }}
+            transition={{ duration: 3, ease: [0.15, 0.85, 0.35, 1] }}
           >
             {singleCategoryView ? (
               /* Single category view - emoji is the button */
@@ -198,19 +200,9 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
                 className="w-full h-full rounded-full flex items-center justify-center cursor-pointer transition-transform hover:scale-105 active:scale-95 disabled:opacity-70"
                 style={{ backgroundColor: singleCategoryView.color }}
               >
-                <motion.span
-                  className="text-8xl drop-shadow-lg select-none"
-                  animate={isSpinning ? {
-                    rotate: [0, 360],
-                    scale: [1, 1.1, 1]
-                  } : {}}
-                  transition={isSpinning ? {
-                    rotate: { duration: 1, repeat: Infinity, ease: "linear" },
-                    scale: { duration: 0.5, repeat: Infinity }
-                  } : {}}
-                >
+                <span className="text-8xl drop-shadow-lg select-none leading-none pt-2">
                   {singleCategoryView.emoji}
-                </motion.span>
+                </span>
               </button>
             ) : (
               /* Multi-category wheel view */

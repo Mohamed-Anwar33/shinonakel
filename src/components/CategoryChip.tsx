@@ -12,11 +12,10 @@ const CategoryChip = ({ icon, label, isSelected = false, onClick }: CategoryChip
     <motion.button
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
-      className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all min-w-[70px] ${
-        isSelected
+      className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all min-w-[70px] ${isSelected
           ? "bg-primary text-primary-foreground shadow-soft"
           : "bg-card text-foreground hover:bg-secondary"
-      }`}
+        }`}
     >
       <span className="text-2xl">{icon}</span>
       <span className="text-xs font-medium">{label}</span>

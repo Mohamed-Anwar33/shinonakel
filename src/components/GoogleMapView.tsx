@@ -16,26 +16,37 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
     // Default center (Kuwait City)
     const defaultCenter = { lat: 29.3759, lng: 47.9774 };
 
-    // Filter restaurants that have valid coordinates
-    const validRestaurants = restaurants.filter(r =>
-        r.branches &&
-        r.branches.some((b: any) => b.latitude && b.longitude)
-    );
+    // Generate markers from either branches or the restaurant's main location
+    const markers = restaurants.flatMap(r => {
+        const validBranches = r.branches?.filter((b: any) => b.latitude && b.longitude) || [];
 
-    // flatten branches to show all locations
-    const markers = validRestaurants.flatMap(r =>
-        r.branches
-            .filter((b: any) => b.latitude && b.longitude)
-            .map((b: any) => ({
+        if (validBranches.length > 0) {
+            return validBranches.map((b: any) => ({
                 ...b,
                 restaurantName: r.name,
-                restaurantImage: r.image_url,
+                restaurantImage: r.image || r.image_url,
                 cuisine: r.cuisine,
                 rating: r.ratings && r.ratings.length > 0
                     ? r.ratings.reduce((acc: number, curr: any) => acc + curr.rating, 0) / r.ratings.length
                     : null
-            }))
-    );
+            }));
+        } else if (r.latitude && r.longitude) {
+            // Fallback: Use the restaurant's direct coordinates (e.g. from geocoding in Results.tsx)
+            return [{
+                id: r.id,
+                latitude: r.latitude,
+                longitude: r.longitude,
+                restaurantName: r.name,
+                restaurantImage: r.image || r.image_url,
+                cuisine: r.cuisine,
+                rating: r.ratings && r.ratings.length > 0
+                    ? r.ratings.reduce((acc: number, curr: any) => acc + curr.rating, 0) / r.ratings.length
+                    : (r.rating || null), // r.rating might be pre-calculated in Results.tsx
+                google_maps_url: r.mapsUrl // Use the calculated mapsUrl from Results.tsx if available
+            }];
+        }
+        return [];
+    });
 
     if (!apiKey) {
         return (
@@ -71,9 +82,37 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
                         <AdvancedMarker
                             key={`${branch.id}-${index}`}
                             position={{ lat: branch.latitude, lng: branch.longitude }}
-                            onClick={() => setSelectedRestaurant(branch)}
+                            onClick={() => {
+                                const url = branch.google_maps_url ||
+                                    `https://www.google.com/maps/search/?api=1&query=${branch.latitude},${branch.longitude}`;
+                                window.open(url, '_blank', 'noopener,noreferrer');
+                            }}
+                            className="cursor-pointer hover:z-50"
                         >
-                            <Pin background={"#ea580c"} borderColor={"#c2410c"} glyphColor={"#fff"} />
+                            <div className="relative flex flex-col items-center group transition-transform hover:scale-110">
+                                <div className="relative w-12 h-12 rounded-full border-[3px] border-white shadow-elevated overflow-hidden bg-white z-10">
+                                    {branch.restaurantImage ? (
+                                        <img
+                                            src={branch.restaurantImage}
+                                            alt={branch.restaurantName}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-primary text-white">
+                                            <MapPin className="w-6 h-6" />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="w-3 h-3 bg-white rotate-45 -mt-2 shadow-sm z-0"></div>
+
+                                {/* Rating Badge */}
+                                {branch.rating && (
+                                    <div className="absolute -top-2 -right-2 bg-white px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm border border-gray-100 z-20">
+                                        <Star className="w-2 h-2 fill-amber-500 text-amber-500" />
+                                        <span className="text-[8px] font-bold text-gray-800">{branch.rating.toFixed(1)}</span>
+                                    </div>
+                                )}
+                            </div>
                         </AdvancedMarker>
                     ))}
 
