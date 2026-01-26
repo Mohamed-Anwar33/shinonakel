@@ -17,6 +17,7 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
     const defaultCenter = { lat: 29.3759, lng: 47.9774 };
 
     // Generate markers from either branches or the restaurant's main location
+    // Also include restaurants without coordinates - they will open Google Maps search
     const markers = restaurants.flatMap(r => {
         const validBranches = r.branches?.filter((b: any) => b.latitude && b.longitude) || [];
 
@@ -28,7 +29,8 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
                 cuisine: r.cuisine,
                 rating: r.ratings && r.ratings.length > 0
                     ? r.ratings.reduce((acc: number, curr: any) => acc + curr.rating, 0) / r.ratings.length
-                    : null
+                    : null,
+                hasCoordinates: true
             }));
         } else if (r.latitude && r.longitude) {
             // Fallback: Use the restaurant's direct coordinates (e.g. from geocoding in Results.tsx)
@@ -41,12 +43,31 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
                 cuisine: r.cuisine,
                 rating: r.ratings && r.ratings.length > 0
                     ? r.ratings.reduce((acc: number, curr: any) => acc + curr.rating, 0) / r.ratings.length
-                    : (r.rating || null), // r.rating might be pre-calculated in Results.tsx
-                google_maps_url: r.mapsUrl // Use the calculated mapsUrl from Results.tsx if available
+                    : (r.rating || null),
+                google_maps_url: r.mapsUrl,
+                hasCoordinates: true
+            }];
+        } else {
+            // Restaurant without coordinates - will use Google Maps search
+            return [{
+                id: r.id,
+                latitude: null,
+                longitude: null,
+                restaurantName: r.name,
+                restaurantImage: r.image || r.image_url,
+                cuisine: r.cuisine,
+                rating: r.ratings && r.ratings.length > 0
+                    ? r.ratings.reduce((acc: number, curr: any) => acc + curr.rating, 0) / r.ratings.length
+                    : (r.rating || null),
+                google_maps_url: null,
+                hasCoordinates: false
             }];
         }
-        return [];
     });
+
+    // Separate markers with and without coordinates
+    const markersWithCoords = markers.filter(m => m.hasCoordinates && m.latitude && m.longitude);
+    const markersWithoutCoords = markers.filter(m => !m.hasCoordinates);
 
     if (!apiKey) {
         return (
@@ -77,11 +98,11 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
                         </AdvancedMarker>
                     )}
 
-                    {/* Restaurant Markers */}
-                    {markers.map((branch, index) => (
+                    {/* Restaurant Markers with Coordinates */}
+                    {markersWithCoords.map((branch, index) => (
                         <AdvancedMarker
                             key={`${branch.id}-${index}`}
-                            position={{ lat: branch.latitude, lng: branch.longitude }}
+                            position={{ lat: branch.latitude!, lng: branch.longitude! }}
                             onClick={() => {
                                 const url = branch.google_maps_url ||
                                     `https://www.google.com/maps/search/?api=1&query=${branch.latitude},${branch.longitude}`;
@@ -170,9 +191,44 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-card/95 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg text-center text-sm flex items-center gap-2 z-10">
                     <MapPin className="w-4 h-4 text-primary" />
                     <span className="font-medium">
-                        {category === "الكل" ? "جميع المطاعم" : `مطاعم ${category}`} ({markers.length})
+                        {category === "الكل" ? "جميع المطاعم" : `مطاعم ${category}`} ({markersWithCoords.length})
                     </span>
                 </div>
+
+                {/* Restaurants without coordinates - Show as list at bottom */}
+                {markersWithoutCoords.length > 0 && (
+                    <div className="absolute bottom-4 left-4 right-4 bg-card/95 backdrop-blur-sm rounded-xl shadow-lg p-3 max-h-32 overflow-y-auto z-10">
+                        <p className="text-xs text-muted-foreground mb-2 font-medium">
+                            مطاعم بدون موقع محدد (اضغط للبحث في Google Maps):
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {markersWithoutCoords.map((restaurant, index) => (
+                                <button
+                                    key={`no-coords-${restaurant.id}-${index}`}
+                                    onClick={() => {
+                                        const searchQuery = encodeURIComponent(`${restaurant.restaurantName} Kuwait`);
+                                        window.open(`https://www.google.com/maps/search/${searchQuery}`, '_blank', 'noopener,noreferrer');
+                                    }}
+                                    className="flex items-center gap-2 bg-white hover:bg-primary/10 border border-border rounded-full px-3 py-1.5 transition-colors"
+                                >
+                                    {restaurant.restaurantImage ? (
+                                        <img
+                                            src={restaurant.restaurantImage}
+                                            alt={restaurant.restaurantName}
+                                            className="w-6 h-6 rounded-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
+                                            <MapPin className="w-3 h-3 text-primary" />
+                                        </div>
+                                    )}
+                                    <span className="text-xs font-medium">{restaurant.restaurantName}</span>
+                                    <Navigation className="w-3 h-3 text-primary" />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         </APIProvider>
     );
