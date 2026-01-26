@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/spin-logo.png";
 interface Cuisine {
   id: string;
   name: string;
