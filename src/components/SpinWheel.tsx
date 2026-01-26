@@ -244,6 +244,7 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
                         fill="white"
                         fontSize="10"
                         style={{ fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif' }}
+                        transform={`rotate(${midAngle + 90}, ${textX}, ${textY})`}
                       >
                         {category.icon}
                       </text>
