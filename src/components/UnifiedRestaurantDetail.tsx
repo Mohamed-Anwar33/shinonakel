@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Star, Phone, Heart, MapPin } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -63,6 +64,7 @@ const UnifiedRestaurantDetail = ({
   const { user, isGuest } = useAuth();
   const { language, t } = useLanguage();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [isFavorite, setIsFavorite] = useState(false);
   const [isLoadingFavorite, setIsLoadingFavorite] = useState(false);
@@ -658,7 +660,15 @@ const UnifiedRestaurantDetail = ({
                                 className={`p-4 rounded-xl ${isOwnerReview ? "bg-primary/10 border-2 border-primary/30" : "bg-muted/50"}`}
                               >
                                 <div className="flex items-start gap-3 mb-2">
-                                  <Avatar className="w-10 h-10">
+                                  <Avatar 
+                                    className="w-10 h-10 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                                    onClick={() => {
+                                      if (review.profile?.username) {
+                                        onClose();
+                                        navigate(`/user/${review.profile.username}`);
+                                      }
+                                    }}
+                                  >
                                     <AvatarImage src={review.profile?.avatar_url || undefined} />
                                     <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                                       {review.profile?.username?.charAt(0).toUpperCase() || "U"}
@@ -666,7 +676,17 @@ const UnifiedRestaurantDetail = ({
                                   </Avatar>
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                      <h4 className="font-medium">{review.profile?.username || t("مستخدم", "User")}</h4>
+                                      <h4 
+                                        className="font-medium cursor-pointer hover:text-primary transition-colors"
+                                        onClick={() => {
+                                          if (review.profile?.username) {
+                                            onClose();
+                                            navigate(`/user/${review.profile.username}`);
+                                          }
+                                        }}
+                                      >
+                                        {review.profile?.username || t("مستخدم", "User")}
+                                      </h4>
                                       {isOwnerReview && (
                                         <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
                                           {t("صاحب القائمة", "List Owner")}
