@@ -12,13 +12,23 @@ const ViewToggle = ({
   const {
     t
   } = useLanguage();
-  return <div className="flex items-center gap-2 bg-white/20 rounded-full px-[15px] py-0 my-0 mx-0">
-      <button onClick={() => onChange("list")} className="transition-all flex items-center justify-center" aria-label="List view">
-        <List className="" />
+  return (
+    <div className="flex items-center gap-1 bg-primary rounded-full p-1">
+      <button 
+        onClick={() => onChange("map")} 
+        className={`transition-all flex items-center justify-center p-2 rounded-full ${view === "map" ? "bg-white/25" : ""}`} 
+        aria-label="Map view"
+      >
+        <Map className="w-5 h-5 text-white" />
       </button>
-      <button onClick={() => onChange("map")} className="transition-all flex items-center justify-center" aria-label="Map view">
-        <Map className="" />
+      <button 
+        onClick={() => onChange("list")} 
+        className={`transition-all flex items-center justify-center p-2 rounded-full ${view === "list" ? "bg-white/25" : ""}`} 
+        aria-label="List view"
+      >
+        <List className="w-5 h-5 text-white" />
       </button>
-    </div>;
+    </div>
+  );
 };
 export default ViewToggle;
