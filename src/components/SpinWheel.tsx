@@ -266,19 +266,21 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
 
         {/* Center button with logo - only show for multi-category wheel */}
         {!singleCategoryView && (
-          <button
-            onClick={spinWheel}
-            disabled={isSpinning}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-card shadow-elevated flex items-center justify-center z-10 transition-transform hover:scale-105 active:scale-95 disabled:opacity-70 overflow-hidden"
-          >
-            <motion.img
-              src={logo}
-              alt="Logo"
-              className="w-12 h-12 object-contain"
-              animate={isSpinning ? { rotate: 360 } : {}}
-              transition={isSpinning ? { duration: 1, repeat: Infinity, ease: "linear" } : {}}
-            />
-          </button>
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <button
+              onClick={spinWheel}
+              disabled={isSpinning}
+              className="w-16 h-16 rounded-full bg-card shadow-elevated flex items-center justify-center z-10 transition-transform hover:scale-105 active:scale-95 disabled:opacity-70 overflow-hidden pointer-events-auto"
+            >
+              <motion.img
+                src={logo}
+                alt="Logo"
+                className="w-12 h-12 object-contain"
+                animate={isSpinning ? { rotate: 360 } : {}}
+                transition={isSpinning ? { duration: 1, repeat: Infinity, ease: "linear" } : {}}
+              />
+            </button>
+          </div>
         )}
       </div>
     </div>
