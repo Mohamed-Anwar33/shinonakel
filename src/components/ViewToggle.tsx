@@ -11,26 +11,20 @@ const ViewToggle = ({ view, onChange }: ViewToggleProps) => {
   const { t } = useLanguage();
 
   return (
-    <div className="flex items-center gap-1 bg-white/20 rounded-full p-1">
+    <div className="flex items-center gap-2 bg-white/20 rounded-full px-3 py-2">
       <button
         onClick={() => onChange("list")}
-        className={`w-9 h-9 rounded-full transition-all flex items-center justify-center ${view === "list"
-            ? "bg-white text-primary shadow-sm"
-            : "text-white/80 hover:text-white"
-          }`}
+        className="transition-all flex items-center justify-center"
         aria-label="List view"
       >
-        <List className="w-5 h-5 flex-shrink-0" />
+        <List className={`w-5 h-5 flex-shrink-0 transition-colors ${view === "list" ? "text-white" : "text-white/50 hover:text-white/70"}`} />
       </button>
       <button
         onClick={() => onChange("map")}
-        className={`w-9 h-9 rounded-full transition-all flex items-center justify-center ${view === "map"
-            ? "bg-white text-primary shadow-sm"
-            : "text-white/80 hover:text-white"
-          }`}
+        className="transition-all flex items-center justify-center"
         aria-label="Map view"
       >
-        <Map className="w-5 h-5 flex-shrink-0" />
+        <Map className={`w-5 h-5 flex-shrink-0 transition-colors ${view === "map" ? "text-white" : "text-white/50 hover:text-white/70"}`} />
       </button>
     </div>
   );
