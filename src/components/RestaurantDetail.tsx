@@ -489,11 +489,8 @@ const RestaurantDetail = ({ isOpen, onClose, restaurant }: RestaurantDetailProps
                     
                     {/* Rating Badge */}
                     <div className="flex items-center gap-1.5 bg-amber-100 px-3 py-1.5 rounded-xl shrink-0">
-                      <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
                       <span className="text-lg font-bold text-foreground">{avgRating}</span>
-                      {reviews.length > 0 && (
-                        <span className="text-xs text-muted-foreground">({reviews.length})</span>
-                      )}
+                      <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
                     </div>
                   </div>
 
