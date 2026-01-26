@@ -363,6 +363,18 @@ const Index = () => {
                     <img src={restaurant.image_url || restaurant1} alt={language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name} className="w-full h-full object-cover" />
                   </div>
                   <div className="p-2 flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-sm truncate">
+                        {language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {(() => {
+                          const matchedCuisine = cuisines.find(c => c.name === restaurant.cuisine || restaurant.cuisine?.startsWith(c.name) || c.name?.startsWith(restaurant.cuisine?.slice(0, -1) || ''));
+                          const cuisineName = language === "en" && matchedCuisine?.name_en ? matchedCuisine.name_en : restaurant.cuisine;
+                          return `${matchedCuisine?.emoji || "🍽️"} ${cuisineName}`;
+                        })()}
+                      </p>
+                    </div>
                     <button onClick={e => {
                       e.stopPropagation();
                       const mapsUrl = restaurant.branches?.[0]?.google_maps_url;
@@ -379,18 +391,6 @@ const Index = () => {
                     }} className="w-7 h-7 shrink-0 rounded-full bg-primary/10 hover:bg-primary/20 inline-flex items-center justify-center transition-colors text-primary">
                       <MapPin className="w-3.5 h-3.5" />
                     </button>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-sm truncate">
-                        {language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        {(() => {
-                          const matchedCuisine = cuisines.find(c => c.name === restaurant.cuisine || restaurant.cuisine?.startsWith(c.name) || c.name?.startsWith(restaurant.cuisine?.slice(0, -1) || ''));
-                          const cuisineName = language === "en" && matchedCuisine?.name_en ? matchedCuisine.name_en : restaurant.cuisine;
-                          return `${matchedCuisine?.emoji || "🍽️"} ${cuisineName}`;
-                        })()}
-                      </p>
-                    </div>
                   </div>
                 </motion.div>)}
             </div>}
