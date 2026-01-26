@@ -90,7 +90,7 @@ const RestaurantCard = ({
               {deliveryApps.slice(0, 2).map((app) => (
                 <span
                   key={app.name}
-                  className="inline-flex items-center justify-center px-2 h-5 rounded-full text-xs font-semibold border leading-none"
+                  className="inline-flex items-center justify-center px-2 pt-1.5 pb-1 rounded-full text-xs font-semibold border leading-none"
                   style={{ borderColor: app.color, color: app.color }}
                 >
                   {app.name}
@@ -103,9 +103,9 @@ const RestaurantCard = ({
         {/* Action Buttons Column */}
         <div className="flex flex-col items-center justify-between p-2">
           {/* Rating */}
-          <div className="flex items-center gap-1 bg-amber-100 px-2 py-1 rounded-lg">
+          <div className="flex items-center gap-1 bg-amber-100 px-2 pt-1.5 pb-1 rounded-lg">
             <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-            <span className="text-sm font-bold text-foreground">{rating.toFixed(1)}</span>
+            <span className="text-sm font-bold text-foreground leading-none">{rating.toFixed(1)}</span>
           </div>
 
           {/* Favorite */}
