@@ -224,10 +224,8 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
 
                   const midAngle = (startAngle + endAngle) / 2;
                   const midRad = (midAngle * Math.PI) / 180;
-                  // Position emoji at 65% of the radius for better centering in slice
-                  const emojiRadius = 32;
-                  const textX = 50 + emojiRadius * Math.cos(midRad);
-                  const textY = 50 + emojiRadius * Math.sin(midRad);
+                  const textX = 50 + 38 * Math.cos(midRad);
+                  const textY = 50 + 38 * Math.sin(midRad);
 
                   return (
                     <g key={`${category.name}-${index}`}>
@@ -237,20 +235,15 @@ const SpinWheel = ({ onResult, selectedCategory = "الكل", cuisines }: SpinWh
                         stroke="white"
                         strokeWidth="0.5"
                       />
-                      {/* Emoji centered in slice */}
+                      {/* Emoji only */}
                       <text
                         x={textX}
                         y={textY}
+                        dy="0.35em"
                         textAnchor="middle"
-                        dominantBaseline="central"
-                        alignmentBaseline="central"
                         fill="white"
-                        fontSize="9"
-                        style={{ 
-                          fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif',
-                          transformOrigin: `${textX}px ${textY}px`,
-                          transformBox: 'fill-box'
-                        }}
+                        fontSize="10"
+                        style={{ fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif' }}
                         transform={`rotate(${midAngle + 90}, ${textX}, ${textY})`}
                       >
                         {category.icon}
