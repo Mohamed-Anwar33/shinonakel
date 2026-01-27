@@ -423,6 +423,7 @@ export type Database = {
           cuisines: string[] | null
           id: string
           image_url: string | null
+          is_sponsored: boolean | null
           name: string
           name_en: string | null
           phone: string | null
@@ -436,6 +437,7 @@ export type Database = {
           cuisines?: string[] | null
           id?: string
           image_url?: string | null
+          is_sponsored?: boolean | null
           name: string
           name_en?: string | null
           phone?: string | null
@@ -449,6 +451,7 @@ export type Database = {
           cuisines?: string[] | null
           id?: string
           image_url?: string | null
+          is_sponsored?: boolean | null
           name?: string
           name_en?: string | null
           phone?: string | null
