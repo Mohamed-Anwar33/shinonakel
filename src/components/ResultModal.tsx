@@ -87,11 +87,16 @@ const ResultModal = ({ isOpen, onClose, category }: ResultModalProps) => {
   const fetchAdvertisement = async () => {
     setIsLoadingAd(true);
     try {
-      // Fetch active advertisements for pinned_ad placement
+      // Determine which placement to look for based on category
+      const targetPlacements = category === "الكل" 
+        ? ["pinned_ad", "pinned_ad_all"] 
+        : ["pinned_ad", "pinned_ad_all", `pinned_ad_cuisine_${category}`];
+      
+      // Fetch active advertisements for pinned_ad placements
       const { data: ads, error: adsError } = await supabase
         .from("advertisements")
-        .select("restaurant_id, id")
-        .eq("placement", "pinned_ad")
+        .select("restaurant_id, id, placement")
+        .in("placement", targetPlacements)
         .eq("is_active", true)
         .lte("start_date", new Date().toISOString().split('T')[0])
         .gte("end_date", new Date().toISOString().split('T')[0]);
