@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Star, Heart, MapPin } from "lucide-react";
+import { Star, Heart, MapPin, Trash2 } from "lucide-react";
 interface DeliveryApp {
   name: string;
   color: string;
@@ -10,13 +10,16 @@ interface CompactRestaurantCardProps {
   cuisine?: string;
   image: string;
   rating: number;
-  distance: string;
+  distance?: string;
   mapUrl?: string | null;
   deliveryApps: DeliveryApp[];
   isFavorite?: boolean;
   onFavoriteClick?: () => void;
   onMapClick?: () => void;
   onClick?: () => void;
+  // For My List page - show delete instead of favorite
+  showDelete?: boolean;
+  onDeleteClick?: () => void;
 }
 const CompactRestaurantCard = ({
   name,
@@ -29,7 +32,9 @@ const CompactRestaurantCard = ({
   isFavorite = false,
   onFavoriteClick,
   onMapClick,
-  onClick
+  onClick,
+  showDelete = false,
+  onDeleteClick
 }: CompactRestaurantCardProps) => {
   return <motion.div initial={{
     opacity: 0,
@@ -38,19 +43,28 @@ const CompactRestaurantCard = ({
     opacity: 1,
     x: 0
   }} className="flex flex-row-reverse items-center gap-3 p-3 bg-card rounded-2xl shadow-card hover:shadow-elevated transition-all cursor-pointer" onClick={onClick}>
-      {/* Left Side: Rating, Heart, Map (Vertical) */}
+      {/* Left Side: Rating, Heart/Delete, Map (Vertical) */}
       <div className="flex flex-col items-center gap-2 shrink-0">
         <div className="inline-flex items-center justify-center gap-1 bg-amber-100 px-2 pt-1.5 pb-1 rounded-lg">
           <span className="text-xs font-bold leading-none mb-0 mr-[3px] px-[2px] font-mono">{rating.toFixed(1)}</span>
           <Star className="w-3 h-3 fill-accent text-accent" />
         </div>
 
-        <button onClick={e => {
-        e.stopPropagation();
-        onFavoriteClick?.();
-      }} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-secondary/50 transition-colors">
-          <Heart className={`w-5 h-5 transition-colors ${isFavorite ? "fill-primary text-primary" : "text-muted-foreground"}`} />
-        </button>
+        {showDelete ? (
+          <button onClick={e => {
+            e.stopPropagation();
+            onDeleteClick?.();
+          }} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-destructive/10 transition-colors">
+            <Trash2 className="w-5 h-5 text-muted-foreground hover:text-destructive transition-colors" />
+          </button>
+        ) : (
+          <button onClick={e => {
+            e.stopPropagation();
+            onFavoriteClick?.();
+          }} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-secondary/50 transition-colors">
+            <Heart className={`w-5 h-5 transition-colors ${isFavorite ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+          </button>
+        )}
 
         {/* Always show map icon - opens Google Maps search */}
         <button onClick={e => {
