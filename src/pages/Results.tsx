@@ -134,6 +134,9 @@ const Results = () => {
     lat: number;
     lon: number;
   }>>(new Map());
+  const [pinnedAdRestaurantId, setPinnedAdRestaurantId] = useState<string | null>(null);
+  const [pinnedAdId, setPinnedAdId] = useState<string | null>(null);
+  const pinnedAdViewTracked = useRef(false);
 
   // Show location error if it occurs
   useEffect(() => {
@@ -149,7 +152,8 @@ const Results = () => {
   useEffect(() => {
     fetchRestaurants();
     fetchCuisines();
-  }, []);
+    fetchPinnedAd();
+  }, [category]);
   const fetchCuisines = async () => {
     const {
       data
@@ -183,6 +187,71 @@ const Results = () => {
       setIsLoading(false);
     }
   };
+  
+  const fetchPinnedAd = async () => {
+    try {
+      // Determine which placements to look for based on category
+      const targetPlacements = category === "الكل" 
+        ? ["pinned_ad", "pinned_ad_all"] 
+        : ["pinned_ad", "pinned_ad_all", `pinned_ad_cuisine_${category}`];
+      
+      const { data: ads, error } = await supabase
+        .from("advertisements")
+        .select("restaurant_id, id, placement")
+        .in("placement", targetPlacements)
+        .eq("is_active", true)
+        .lte("start_date", new Date().toISOString().split('T')[0])
+        .gte("end_date", new Date().toISOString().split('T')[0]);
+      
+      if (error) throw error;
+      
+      if (ads && ads.length > 0) {
+        // Prefer cuisine-specific ad over general ones
+        const cuisineAd = ads.find(ad => ad.placement === `pinned_ad_cuisine_${category}`);
+        const selectedAd = cuisineAd || ads[0];
+        
+        setPinnedAdRestaurantId(selectedAd.restaurant_id);
+        setPinnedAdId(selectedAd.id);
+        
+        // Track view if not already tracked
+        if (!pinnedAdViewTracked.current) {
+          pinnedAdViewTracked.current = true;
+          
+          await supabase.from("ad_interactions").insert({
+            ad_id: selectedAd.id,
+            interaction_type: "view",
+            user_id: user?.id || null
+          });
+          
+          // Update views count and check max_views
+          const { data: currentAd } = await supabase
+            .from("advertisements")
+            .select("views_count, max_views")
+            .eq("id", selectedAd.id)
+            .single();
+          
+          if (currentAd) {
+            const newViewsCount = (currentAd.views_count || 0) + 1;
+            const shouldDeactivate = currentAd.max_views && newViewsCount >= currentAd.max_views;
+            
+            await supabase
+              .from("advertisements")
+              .update({ 
+                views_count: newViewsCount,
+                ...(shouldDeactivate && { is_active: false })
+              })
+              .eq("id", selectedAd.id);
+          }
+        }
+      } else {
+        setPinnedAdRestaurantId(null);
+        setPinnedAdId(null);
+      }
+    } catch (error) {
+      console.error("Error fetching pinned ad:", error);
+    }
+  };
+  
   const fetchSavedRestaurants = async () => {
     try {
       const {
@@ -274,7 +343,8 @@ const Results = () => {
         cuisine: r.cuisine,
         category: r.cuisine,
         isOpen: true,
-        isSponsored: false,
+        isSponsored: r.id === pinnedAdRestaurantId,
+        adId: r.id === pinnedAdRestaurantId ? pinnedAdId : null,
         deliveryApps: (r.delivery_apps || []).map(app => ({
           name: app.app_name,
           color: getDeliveryAppColor(app.app_name),
@@ -295,7 +365,7 @@ const Results = () => {
         mapsUrl
       };
     });
-  }, [restaurants, savedRestaurantIds, userLat, userLon, t, geocodedCoords]);
+  }, [restaurants, savedRestaurantIds, userLat, userLon, t, geocodedCoords, pinnedAdRestaurantId, pinnedAdId]);
   const filteredRestaurants = useMemo(() => {
     let filtered = category === "الكل" ? [...transformedRestaurants] : transformedRestaurants.filter(r => {
       // البحث في الفئة الرئيسية
@@ -314,6 +384,10 @@ const Results = () => {
       filtered = filtered.filter(r => r.createdAt >= thirtyDaysAgo);
     }
     return filtered.sort((a, b) => {
+      // Pinned ad always comes first
+      if (a.isSponsored && !b.isSponsored) return -1;
+      if (!a.isSponsored && b.isSponsored) return 1;
+      
       if (filterNearby && filterNewest) {
         const aDistance = a.distanceNum ?? Infinity;
         const bDistance = b.distanceNum ?? Infinity;
@@ -393,6 +467,35 @@ const Results = () => {
       });
     }
   };
+  
+  const handleDeliveryAppClick = async (restaurant: any, app: any) => {
+    // Track click if this restaurant has an ad
+    if (restaurant.adId) {
+      try {
+        await supabase.from("ad_interactions").insert({
+          ad_id: restaurant.adId,
+          interaction_type: "click",
+          user_id: user?.id || null
+        });
+        
+        const { data: currentAd } = await supabase
+          .from("advertisements")
+          .select("clicks_count")
+          .eq("id", restaurant.adId)
+          .single();
+        
+        if (currentAd) {
+          await supabase
+            .from("advertisements")
+            .update({ clicks_count: (currentAd.clicks_count || 0) + 1 })
+            .eq("id", restaurant.adId);
+        }
+      } catch (error) {
+        console.error("Error tracking ad click:", error);
+      }
+    }
+  };
+  
   const handleMapClick = (restaurant: any) => {
     if (restaurant.mapsUrl) {
       window.open(restaurant.mapsUrl, '_blank', 'noopener,noreferrer');
@@ -594,7 +697,7 @@ const Results = () => {
               }} transition={{
                 delay: index * 0.05
               }}>
-                          <CompactRestaurantCard name={language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name} cuisine={`${getCuisineDisplay(restaurant.cuisine).emoji} ${getCuisineDisplay(restaurant.cuisine).name}`} image={restaurant.image} rating={restaurant.rating} distance={restaurant.distance} deliveryApps={restaurant.deliveryApps} isFavorite={savedRestaurantIds.includes(restaurant.name)} onFavoriteClick={() => toggleFavorite(restaurant)} onMapClick={() => handleMapClick(restaurant)} onClick={() => handleRestaurantClick(restaurant)} />
+                          <CompactRestaurantCard name={language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name} cuisine={`${getCuisineDisplay(restaurant.cuisine).emoji} ${getCuisineDisplay(restaurant.cuisine).name}`} image={restaurant.image} rating={restaurant.rating} distance={restaurant.distance} deliveryApps={restaurant.deliveryApps} isFavorite={savedRestaurantIds.includes(restaurant.name)} onFavoriteClick={() => toggleFavorite(restaurant)} onMapClick={() => handleMapClick(restaurant)} onClick={() => handleRestaurantClick(restaurant)} onDeliveryAppClick={(app) => handleDeliveryAppClick(restaurant, app)} isSponsored={restaurant.isSponsored} />
                         </motion.div>)}
                     </div>
                   </div>}

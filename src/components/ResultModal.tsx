@@ -102,8 +102,6 @@ const ResultModal = ({ isOpen, onClose, category }: ResultModalProps) => {
         .gte("end_date", new Date().toISOString().split('T')[0]);
 
       if (adsError) throw adsError;
-      
-      console.log("Fetched ads for category:", category, "ads:", ads);
 
       // If we have ads, filter by the selected category's cuisine
       let matchingRestaurant = null;
@@ -142,8 +140,6 @@ const ResultModal = ({ isOpen, onClose, category }: ResultModalProps) => {
           // Get random matching restaurant from filtered list
           matchingRestaurant = availableRestaurants[Math.floor(Math.random() * availableRestaurants.length)];
           matchingAdId = ads.find(ad => ad.restaurant_id === matchingRestaurant.id)?.id;
-          
-          console.log("Selected restaurant:", matchingRestaurant?.name, "matchingAdId:", matchingAdId);
 
           // Store this selection for next time
           localStorage.setItem('lastSpinRestaurantId', matchingRestaurant.id);

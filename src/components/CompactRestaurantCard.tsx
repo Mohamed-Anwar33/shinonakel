@@ -17,6 +17,8 @@ interface CompactRestaurantCardProps {
   onFavoriteClick?: () => void;
   onMapClick?: () => void;
   onClick?: () => void;
+  onDeliveryAppClick?: (app: DeliveryApp) => void;
+  isSponsored?: boolean;
   // For My List page - show delete instead of favorite
   showDelete?: boolean;
   onDeleteClick?: () => void;
@@ -33,6 +35,8 @@ const CompactRestaurantCard = ({
   onFavoriteClick,
   onMapClick,
   onClick,
+  onDeliveryAppClick,
+  isSponsored = false,
   showDelete = false,
   onDeleteClick
 }: CompactRestaurantCardProps) => {
@@ -42,7 +46,13 @@ const CompactRestaurantCard = ({
   }} animate={{
     opacity: 1,
     x: 0
-  }} className="flex flex-row-reverse items-center gap-3 p-3 bg-card rounded-2xl shadow-card hover:shadow-elevated transition-all cursor-pointer" onClick={onClick}>
+  }} className={`flex flex-row-reverse items-center gap-3 p-3 bg-card rounded-2xl shadow-card hover:shadow-elevated transition-all cursor-pointer relative ${isSponsored ? 'ring-2 ring-primary/30' : ''}`} onClick={onClick}>
+      {/* Sponsored Badge */}
+      {isSponsored && (
+        <div className="absolute top-1 right-1 bg-primary text-primary-foreground text-[8px] font-bold px-1.5 py-0.5 rounded-full">
+          إعلان
+        </div>
+      )}
       {/* Left Side: Rating, Heart/Delete, Map (Vertical) */}
       <div className="flex flex-col items-center gap-2 shrink-0">
         <div className="inline-flex items-center justify-center gap-1 bg-amber-100 px-2 pt-1.5 pb-1 rounded-lg">
@@ -91,8 +101,11 @@ const CompactRestaurantCard = ({
 
         {/* Delivery Apps */}
         {deliveryApps.length > 0 && <div className="flex items-center gap-1.5 flex-wrap flex-row-reverse justify-end">
-            {deliveryApps.map(app => <button key={app.name} onClick={e => {
+        {deliveryApps.map(app => <button key={app.name} onClick={e => {
           e.stopPropagation();
+          // Call the callback first for tracking
+          onDeliveryAppClick?.(app);
+          // Then open the URL
           if (app.url) {
             const url = app.url.startsWith('http') ? app.url : `https://${app.url}`;
             window.open(url, '_blank', 'noopener,noreferrer');
