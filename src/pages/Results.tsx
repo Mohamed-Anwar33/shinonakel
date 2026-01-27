@@ -527,7 +527,7 @@ const Results = () => {
                         {/* Rating Badge */}
                         <div className="absolute bottom-3 left-3 inline-flex items-center justify-center gap-1 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-soft">
                           <Star className="w-4 h-4 fill-accent text-accent" />
-                          <span className="text-sm font-bold leading-none pt-0.5">{featuredRestaurant.rating.toFixed(1)}</span>
+                          <span className="text-sm font-bold leading-none pt-0.5 font-mono">{featuredRestaurant.rating.toFixed(1)}</span>
                         </div>
                       </div>
 

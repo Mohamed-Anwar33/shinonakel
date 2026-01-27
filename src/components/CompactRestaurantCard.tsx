@@ -41,7 +41,7 @@ const CompactRestaurantCard = ({
       {/* Left Side: Rating, Heart, Map (Vertical) */}
       <div className="flex flex-col items-center gap-2 shrink-0">
         <div className="inline-flex items-center justify-center gap-1 bg-amber-100 px-2 pt-1.5 pb-1 rounded-lg">
-          <span className="text-xs font-bold leading-none mb-0 mr-[3px] px-[2px]">{rating.toFixed(1)}</span>
+          <span className="text-xs font-bold leading-none mb-0 mr-[3px] px-[2px] font-mono">{rating.toFixed(1)}</span>
           <Star className="w-3 h-3 fill-accent text-accent" />
         </div>
 
