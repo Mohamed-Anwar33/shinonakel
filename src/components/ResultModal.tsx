@@ -270,36 +270,9 @@ const ResultModal = ({ isOpen, onClose, category }: ResultModalProps) => {
     }
   };
 
-  const handleMapClick = async () => {
+  const handleMapClick = () => {
     if (!adRestaurant?.branches?.[0]) return;
     const branch = adRestaurant.branches[0];
-    
-    // Track click on ad
-    if (adRestaurant?.adId) {
-      try {
-        await supabase.from("ad_interactions").insert({
-          ad_id: adRestaurant.adId,
-          interaction_type: "click",
-          user_id: user?.id || null
-        });
-
-        const { data: currentAd } = await supabase
-          .from("advertisements")
-          .select("clicks_count")
-          .eq("id", adRestaurant.adId)
-          .single();
-
-        if (currentAd) {
-          await supabase
-            .from("advertisements")
-            .update({ clicks_count: (currentAd.clicks_count || 0) + 1 })
-            .eq("id", adRestaurant.adId);
-        }
-      } catch (error) {
-        console.error("Error tracking map click:", error);
-      }
-    }
-    
     // Priority: google_maps_url > coordinates > address
     if (branch.google_maps_url) {
       window.open(branch.google_maps_url, "_blank", "noopener,noreferrer");
