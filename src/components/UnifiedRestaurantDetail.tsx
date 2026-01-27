@@ -431,7 +431,7 @@ const UnifiedRestaurantDetail = ({
                     </div>
 
                     {/* Action Icons Row */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                       {/* Phone */}
                       <button onClick={handleCall} disabled={!canCall} className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${canCall ? "bg-primary/10 hover:bg-primary/20" : "bg-muted/50 opacity-50 cursor-not-allowed"}`}>
                         <Phone className={`w-5 h-5 ${canCall ? "text-primary" : "text-muted-foreground"}`} />
