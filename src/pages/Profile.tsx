@@ -542,20 +542,20 @@ const Profile = () => {
                   onChange={handleUsernameChange}
                   placeholder="username"
                   dir="ltr"
-                  className={isUsernameAvailable === true ? "border-green-500 pr-10" : isUsernameAvailable === false ? "border-destructive pr-10" : ""}
+                  className={isUsernameAvailable === true ? "border-green-500 pl-10" : isUsernameAvailable === false ? "border-destructive pl-10" : ""}
                 />
                 {isCheckingUsername && (
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
                     <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                   </div>
                 )}
                 {!isCheckingUsername && isUsernameAvailable === true && newUsername !== profile?.username && (
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
                     <Check className="w-4 h-4 text-green-500" />
                   </div>
                 )}
                 {!isCheckingUsername && isUsernameAvailable === false && (
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
                     <X className="w-4 h-4 text-destructive" />
                   </div>
                 )}
