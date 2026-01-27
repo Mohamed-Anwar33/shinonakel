@@ -107,7 +107,7 @@ const Index = () => {
       const {
         data: ads,
         error: adsError
-      } = await supabase.from("advertisements").select("id, restaurant_id").eq("placement", "weekly_picks").eq("is_active", true).lte("start_date", new Date().toISOString().split('T')[0]).gte("end_date", new Date().toISOString().split('T')[0]);
+      } = await supabase.from("advertisements").select("id, restaurant_id").eq("placement", "most_popular").eq("is_active", true).lte("start_date", new Date().toISOString().split('T')[0]).gte("end_date", new Date().toISOString().split('T')[0]);
       if (adsError) throw adsError;
 
       // If there are no active weekly-picks ads, we still show a fallback list

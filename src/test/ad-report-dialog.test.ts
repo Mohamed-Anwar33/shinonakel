@@ -37,19 +37,19 @@ describe("Ad Report Calculations", () => {
 
   it("should correctly identify placement types", () => {
   const getPlacementLabel = (placement: string) => {
-      if (placement === "weekly_picks") return "الأكثر رواجاً";
-      if (placement === "spin_popup_all") return "إعلان مثبت (الكل)";
-      if (placement.startsWith("spin_popup_cuisine_")) {
-        return `إعلان مثبت (${placement.replace("spin_popup_cuisine_", "")})`;
+      if (placement === "most_popular") return "الأكثر رواجاً";
+      if (placement === "pinned_ad_all") return "إعلان مثبت (الكل)";
+      if (placement.startsWith("pinned_ad_cuisine_")) {
+        return `إعلان مثبت (${placement.replace("pinned_ad_cuisine_", "")})`;
       }
-      if (placement === "spin_popup") return "إعلان مثبت";
+      if (placement === "pinned_ad") return "إعلان مثبت";
       return placement;
     };
 
-    expect(getPlacementLabel("weekly_picks")).toBe("الأكثر رواجاً");
-    expect(getPlacementLabel("spin_popup_all")).toBe("إعلان مثبت (الكل)");
-    expect(getPlacementLabel("spin_popup_cuisine_برجر")).toBe("إعلان مثبت (برجر)");
-    expect(getPlacementLabel("spin_popup")).toBe("إعلان مثبت");
+    expect(getPlacementLabel("most_popular")).toBe("الأكثر رواجاً");
+    expect(getPlacementLabel("pinned_ad_all")).toBe("إعلان مثبت (الكل)");
+    expect(getPlacementLabel("pinned_ad_cuisine_برجر")).toBe("إعلان مثبت (برجر)");
+    expect(getPlacementLabel("pinned_ad")).toBe("إعلان مثبت");
   });
 
   it("should correctly categorize hourly data", () => {
@@ -111,16 +111,16 @@ describe("Ad Report Calculations", () => {
 
   it("should identify all vs cuisine placements correctly", () => {
     const testCases = [
-      { placement: "spin_popup_all", isAll: true, isCuisine: false },
-      { placement: "weekly_picks", isAll: true, isCuisine: false },
-      { placement: "spin_popup_cuisine_برجر", isAll: false, isCuisine: true },
-      { placement: "spin_popup_cuisine_بيتزا", isAll: false, isCuisine: true },
-      { placement: "spin_popup", isAll: false, isCuisine: false },
+      { placement: "pinned_ad_all", isAll: true, isCuisine: false },
+      { placement: "most_popular", isAll: true, isCuisine: false },
+      { placement: "pinned_ad_cuisine_برجر", isAll: false, isCuisine: true },
+      { placement: "pinned_ad_cuisine_بيتزا", isAll: false, isCuisine: true },
+      { placement: "pinned_ad", isAll: false, isCuisine: false },
     ];
 
     testCases.forEach(({ placement, isAll, isCuisine }) => {
-      const isAllPlacement = placement === "spin_popup_all" || placement === "weekly_picks";
-      const isCuisinePlacement = placement.startsWith("spin_popup_cuisine_");
+      const isAllPlacement = placement === "pinned_ad_all" || placement === "most_popular";
+      const isCuisinePlacement = placement.startsWith("pinned_ad_cuisine_");
       
       expect(isAllPlacement).toBe(isAll);
       expect(isCuisinePlacement).toBe(isCuisine);

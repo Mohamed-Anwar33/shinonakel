@@ -132,8 +132,8 @@ const AdReportDialog = ({ open, onOpenChange, ad }: AdReportDialogProps) => {
       setDailyData(dailyArr);
 
       // Placement data - check if it's "all" or cuisine-specific based on placement
-      const isAllPlacement = ad.placement === "spin_popup_all" || ad.placement === "weekly_picks";
-      const isCuisinePlacement = ad.placement.startsWith("spin_popup_cuisine_");
+      const isAllPlacement = ad.placement === "pinned_ad_all" || ad.placement === "most_popular";
+      const isCuisinePlacement = ad.placement.startsWith("pinned_ad_cuisine_");
 
       setPlacementData({
         all_views: isAllPlacement ? views.length : 0,
@@ -154,12 +154,12 @@ const AdReportDialog = ({ open, onOpenChange, ad }: AdReportDialogProps) => {
   const ctr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(2) : "0.00";
 
   const getPlacementLabel = (placement: string) => {
-    if (placement === "weekly_picks") return "الأكثر رواجاً";
-    if (placement === "spin_popup_all") return "إعلان مثبت (الكل)";
-    if (placement.startsWith("spin_popup_cuisine_")) {
-      return `إعلان مثبت (${placement.replace("spin_popup_cuisine_", "")})`;
+    if (placement === "most_popular") return "الأكثر رواجاً";
+    if (placement === "pinned_ad_all") return "إعلان مثبت (الكل)";
+    if (placement.startsWith("pinned_ad_cuisine_")) {
+      return `إعلان مثبت (${placement.replace("pinned_ad_cuisine_", "")})`;
     }
-    if (placement === "spin_popup") return "إعلان مثبت";
+    if (placement === "pinned_ad") return "إعلان مثبت";
     return placement;
   };
 
