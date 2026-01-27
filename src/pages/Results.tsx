@@ -223,23 +223,20 @@ const Results = () => {
             user_id: user?.id || null
           });
           
-          // Update views count and check max_views
+          // Increment views via RPC (bypasses RLS)
+          await supabase.rpc("increment_ad_views", { ad_uuid: selectedAd.id });
+          
+          // Check if max_views reached and deactivate if needed
           const { data: currentAd } = await supabase
             .from("advertisements")
             .select("views_count, max_views")
             .eq("id", selectedAd.id)
             .single();
           
-          if (currentAd) {
-            const newViewsCount = (currentAd.views_count || 0) + 1;
-            const shouldDeactivate = currentAd.max_views && newViewsCount >= currentAd.max_views;
-            
+          if (currentAd && currentAd.max_views && (currentAd.views_count || 0) >= currentAd.max_views) {
             await supabase
               .from("advertisements")
-              .update({ 
-                views_count: newViewsCount,
-                ...(shouldDeactivate && { is_active: false })
-              })
+              .update({ is_active: false })
               .eq("id", selectedAd.id);
           }
         }
@@ -472,24 +469,15 @@ const Results = () => {
     // Track click if this restaurant has an ad
     if (restaurant.adId) {
       try {
+        // Insert interaction record
         await supabase.from("ad_interactions").insert({
           ad_id: restaurant.adId,
           interaction_type: "click",
           user_id: user?.id || null
         });
         
-        const { data: currentAd } = await supabase
-          .from("advertisements")
-          .select("clicks_count")
-          .eq("id", restaurant.adId)
-          .single();
-        
-        if (currentAd) {
-          await supabase
-            .from("advertisements")
-            .update({ clicks_count: (currentAd.clicks_count || 0) + 1 })
-            .eq("id", restaurant.adId);
-        }
+        // Increment click count via RPC (bypasses RLS)
+        await supabase.rpc("increment_ad_clicks", { ad_uuid: restaurant.adId });
       } catch (error) {
         console.error("Error tracking ad click:", error);
       }

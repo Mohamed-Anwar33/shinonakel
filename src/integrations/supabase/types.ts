@@ -551,6 +551,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_ad_clicks: { Args: { ad_uuid: string }; Returns: undefined }
+      increment_ad_views: { Args: { ad_uuid: string }; Returns: undefined }
       is_friend: { Args: { user_a: string; user_b: string }; Returns: boolean }
     }
     Enums: {
