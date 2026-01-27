@@ -410,7 +410,7 @@ const UnifiedRestaurantDetail = ({
 
                 <div className="px-5 -mt-8 relative">
                   {/* Info Card */}
-                  <div className="bg-card rounded-2xl p-5 shadow-elevated mb-5">
+                  <div className="bg-card rounded-2xl p-5 shadow-elevated mb-5 overflow-visible">
                     {/* Cuisine */}
                     {restaurant.cuisine && <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-2">
                         <span className="text-lg">{cuisineEmoji}</span>
