@@ -44,7 +44,7 @@ const Welcome = () => {
   }, []);
 
   const validateUsername = (value: string): boolean => {
-    const englishOnlyRegex = /^[a-zA-Z0-9_]+$/;
+    const englishOnlyRegex = /^[a-zA-Z0-9_.]+$/;
     if (!value.trim()) {
       setUsernameError(t("الرجاء إدخال اسم المستخدم", "Please enter a username"));
       return false;
@@ -89,7 +89,7 @@ const Welcome = () => {
 
   const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    const sanitized = value.replace(/[^a-zA-Z0-9_]/g, '');
+    const sanitized = value.replace(/[^a-zA-Z0-9_.]/g, '');
     setUsername(sanitized);
     if (sanitized) validateUsername(sanitized);
   };
@@ -499,7 +499,7 @@ const Welcome = () => {
                     <p className="text-destructive text-sm mt-1">{usernameError}</p>
                   )}
                   <p className="text-muted-foreground text-xs mt-1">
-                    {t("أحرف إنجليزية وأرقام فقط", "English letters and numbers only")}
+                    {t("أحرف إنجليزية وأرقام و . _ فقط", "English letters, numbers, . and _ only")}
                   </p>
                 </div>
               </>

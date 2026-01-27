@@ -324,9 +324,9 @@ const Profile = () => {
     }
   };
 
-  // Validate username - English letters and numbers only
+  // Validate username - English letters, numbers, dots and underscores only
   const validateUsername = (value: string): boolean => {
-    const englishOnlyRegex = /^[a-zA-Z0-9_]+$/;
+    const englishOnlyRegex = /^[a-zA-Z0-9_.]+$/;
     if (!value.trim()) {
       setUsernameError(t("الرجاء إدخال اسم المستخدم", "Please enter a username"));
       setIsUsernameAvailable(null);
@@ -364,7 +364,7 @@ const Profile = () => {
 
   const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    const sanitized = value.replace(/[^a-zA-Z0-9_]/g, '');
+    const sanitized = value.replace(/[^a-zA-Z0-9_.]/g, '');
     setNewUsername(sanitized);
     setIsEditing(true);
     setIsUsernameAvailable(null);
@@ -567,7 +567,7 @@ const Profile = () => {
                 <p className="text-green-500 text-sm mt-1">{t("اسم المستخدم متاح ✓", "Username is available ✓")}</p>
               )}
               <p className="text-muted-foreground text-xs mt-1">
-                {t("أحرف إنجليزية وأرقام فقط", "English letters and numbers only")}
+                {t("أحرف إنجليزية وأرقام و . _ فقط", "English letters, numbers, . and _ only")}
               </p>
             </div>
             {isEditing && (
