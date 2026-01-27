@@ -425,8 +425,8 @@ const UnifiedRestaurantDetail = ({
                       </div>
 
                       <div className="flex items-center gap-1.5 bg-amber-100 rounded-xl shrink-0 py-[5px] px-[16px]">
-                        <span className="text-lg font-bold text-foreground">{avgRating}</span>
-                        <Star className="fill-amber-400 text-amber-400 h-[15px] w-[15px] py-px" />
+                        <span className="font-bold text-foreground text-base text-center">{avgRating}</span>
+                        <Star className="fill-amber-400 text-amber-400 py-0 w-[20px] h-[20px]" />
                       </div>
                     </div>
 
