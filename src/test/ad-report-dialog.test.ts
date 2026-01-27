@@ -36,8 +36,8 @@ describe("Ad Report Calculations", () => {
   });
 
   it("should correctly identify placement types", () => {
-    const getPlacementLabel = (placement: string) => {
-      if (placement === "weekly_picks") return "اختيارات الأسبوع";
+  const getPlacementLabel = (placement: string) => {
+      if (placement === "weekly_picks") return "الأكثر رواجاً";
       if (placement === "spin_popup_all") return "إعلان مثبت (الكل)";
       if (placement.startsWith("spin_popup_cuisine_")) {
         return `إعلان مثبت (${placement.replace("spin_popup_cuisine_", "")})`;
@@ -46,7 +46,7 @@ describe("Ad Report Calculations", () => {
       return placement;
     };
 
-    expect(getPlacementLabel("weekly_picks")).toBe("اختيارات الأسبوع");
+    expect(getPlacementLabel("weekly_picks")).toBe("الأكثر رواجاً");
     expect(getPlacementLabel("spin_popup_all")).toBe("إعلان مثبت (الكل)");
     expect(getPlacementLabel("spin_popup_cuisine_برجر")).toBe("إعلان مثبت (برجر)");
     expect(getPlacementLabel("spin_popup")).toBe("إعلان مثبت");
