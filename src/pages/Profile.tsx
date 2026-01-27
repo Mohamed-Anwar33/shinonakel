@@ -564,7 +564,7 @@ const Profile = () => {
                 <p className="text-destructive text-sm mt-1">{usernameError}</p>
               )}
               {!usernameError && isUsernameAvailable === true && newUsername !== profile?.username && (
-                <p className="text-green-500 text-sm mt-1">{t("اسم المستخدم متاح ✓", "Username is available ✓")}</p>
+                <p className="text-green-500 text-sm mt-1">{t("✓ اسم المستخدم متاح", "Username is available ✓")}</p>
               )}
               <p className="text-muted-foreground text-xs mt-1">
                 {t("أحرف إنجليزية وأرقام و . _ فقط", "English letters, numbers, . and _ only")}
