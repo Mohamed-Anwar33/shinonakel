@@ -128,9 +128,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (rememberMe) {
       localStorage.setItem("rememberMe", "true");
       localStorage.setItem("savedEmail", email);
+      localStorage.setItem("savedPassword", password);
     } else {
       localStorage.removeItem("rememberMe");
       localStorage.removeItem("savedEmail");
+      localStorage.removeItem("savedPassword");
     }
   };
 
@@ -142,7 +144,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         emailRedirectTo: window.location.origin
       }
     });
+
     if (error) throw error;
+
+    // Auto-login logic (Bypass OTP screen if auto-confirm trigger is active)
+    if (data.user && !data.session) {
+      // Try to sign in immediately assuming the database trigger confirmed the user
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (!signInError && signInData.session) {
+        // Session active, onAuthStateChange will handle state update
+        setSession(signInData.session);
+        setUser(signInData.user);
+      }
+    }
 
     // Create profile for new user
     if (data.user) {
@@ -156,8 +174,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setProfile(null);
     setIsGuest(false);
     localStorage.removeItem("guestMode");
-    localStorage.removeItem("rememberMe");
     sessionStorage.removeItem("tempSession");
+    // Do NOT remove rememberMe or savedEmail
   };
 
   const continueAsGuest = () => {
@@ -167,6 +185,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!user) return;
+
+    // Validate username if provided
+    if (updates.username) {
+      const usernameRegex = /^[a-zA-Z0-9_.]+$/;
+      if (!usernameRegex.test(updates.username)) {
+        throw new Error("اسم المستخدم يجب أن يحتوي فقط على أحرف إنجليزية، أرقام، نقطة، أو شرطة سفلية");
+      }
+    }
 
     // Check if profile exists
     const { data: existingProfile } = await supabase

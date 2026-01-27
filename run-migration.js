@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 
 // Initialize Supabase client
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 if (!supabaseUrl || !supabaseServiceKey) {
     console.error('❌ Error: Missing Supabase credentials in .env file');
@@ -28,7 +28,7 @@ async function runMigration() {
 
     try {
         // Read the SQL file
-        const sqlFilePath = path.join(__dirname, 'supabase', 'migrations', '20260125_create_legal_pages.sql');
+        const sqlFilePath = path.join(__dirname, 'supabase', 'migrations', '20260127_disable_otp_secure_profiles.sql');
         const sqlContent = fs.readFileSync(sqlFilePath, 'utf8');
 
         console.log('📄 Read migration file successfully');

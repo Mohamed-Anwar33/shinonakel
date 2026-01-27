@@ -14,7 +14,7 @@ import logo from "@/assets/logo.png";
 
 const Welcome = () => {
   const navigate = useNavigate();
-  const { signInWithEmail, continueAsGuest } = useAuth();
+  const { signInWithEmail, signUpWithEmail, continueAsGuest } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const { toast } = useToast();
 
@@ -35,22 +35,25 @@ const Welcome = () => {
   // Load saved credentials on mount
   useEffect(() => {
     const savedEmail = localStorage.getItem('savedEmail');
+    const savedPassword = localStorage.getItem('savedPassword');
     const savedRememberMe = localStorage.getItem('rememberMe');
 
     if (savedRememberMe === 'true' && savedEmail) {
       setEmail(savedEmail);
+      if (savedPassword) setPassword(savedPassword);
       setRememberMe(true);
     }
   }, []);
 
   const validateUsername = (value: string): boolean => {
+    // English letters, numbers, dot, underscore only
     const englishOnlyRegex = /^[a-zA-Z0-9_.]+$/;
     if (!value.trim()) {
       setUsernameError(t("الرجاء إدخال اسم المستخدم", "Please enter a username"));
       return false;
     }
     if (!englishOnlyRegex.test(value)) {
-      setUsernameError(t("اسم المستخدم يجب أن يكون بالإنجليزية فقط", "Username must be in English only"));
+      setUsernameError(t("اسم المستخدم يجب أن يحتوي فقط على أحرف إنجليزية، أرقام، . أو _", "Username must contain only English letters, numbers, . or _"));
       return false;
     }
     if (value.length < 3) {
@@ -197,26 +200,14 @@ const Welcome = () => {
             navigate("/");
           }
         } else {
-          // Email signup with OTP (existing flow)
-          const { error } = await supabase.auth.signInWithOtp({
-            email,
-            options: {
-              data: {
-                username
-              }
-            }
-          });
+          // Email signup using Password (No OTP)
+          await signUpWithEmail(email, password, username);
 
-          if (error) throw error;
-
-          sessionStorage.setItem('_temp_signup_password', password);
-
-          setPendingUsername(username);
-          setMode("verify");
           toast({
-            title: t("تم إرسال رمز التحقق", "Verification code sent"),
-            description: t("تفقد بريدك الإلكتروني", "Check your email")
+            title: t("تم إنشاء الحساب", "Account created"),
+            description: t("مرحباً بك!", "Welcome!")
           });
+          navigate("/");
         }
       }
     } catch (error: any) {
@@ -245,7 +236,7 @@ const Welcome = () => {
       const { data, error } = await supabase.auth.verifyOtp({
         email,
         token: otp,
-        type: 'email'
+        type: 'signup'
       });
 
       if (error) throw error;
