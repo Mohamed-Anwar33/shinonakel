@@ -154,7 +154,7 @@ const AdReportDialog = ({ open, onOpenChange, ad }: AdReportDialogProps) => {
   const ctr = totalViews > 0 ? ((totalClicks / totalViews) * 100).toFixed(2) : "0.00";
 
   const getPlacementLabel = (placement: string) => {
-    if (placement === "weekly_picks") return "اختيارات الأسبوع";
+    if (placement === "weekly_picks") return "الأكثر رواجاً";
     if (placement === "spin_popup_all") return "إعلان مثبت (الكل)";
     if (placement.startsWith("spin_popup_cuisine_")) {
       return `إعلان مثبت (${placement.replace("spin_popup_cuisine_", "")})`;
