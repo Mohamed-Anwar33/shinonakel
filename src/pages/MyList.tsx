@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, ArrowLeft, Plus, Lock, Trash2, Star, MapPin, Search, X } from "lucide-react";
+import { ArrowRight, ArrowLeft, Plus, Lock, Search, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import BottomNav from "@/components/BottomNav";
 import UnifiedRestaurantDetail from "@/components/UnifiedRestaurantDetail";
+import CompactRestaurantCard from "@/components/CompactRestaurantCard";
 import { getDeliveryAppColor } from "@/lib/deliveryApps";
 interface SavedRestaurant {
   id: string;
@@ -162,6 +163,48 @@ const MyList = () => {
       });
       if (error) throw error;
       setRestaurants(data || []);
+      
+      // Fetch restaurant data for delivery apps
+      if (data && data.length > 0) {
+        const names = data.map(r => r.name);
+        const { data: restaurantData } = await supabase
+          .from("restaurants")
+          .select("id, name")
+          .in("name", names);
+        
+        if (restaurantData && restaurantData.length > 0) {
+          const ids = restaurantData.map(r => r.id);
+          const [branchesRes, appsRes] = await Promise.all([
+            supabase.from("restaurant_branches").select("restaurant_id, latitude, longitude, address, google_maps_url").in("restaurant_id", ids),
+            supabase.from("restaurant_delivery_apps").select("restaurant_id, app_name, app_url").in("restaurant_id", ids)
+          ]);
+          
+          const dataMap: Record<string, RestaurantFromDB> = {};
+          restaurantData.forEach(r => {
+            dataMap[r.name] = {
+              id: r.id,
+              name: r.name,
+              cuisine: "",
+              image_url: null,
+              phone: null,
+              website: null,
+              branches: (branchesRes.data || []).filter(b => b.restaurant_id === r.id).map(b => ({
+                latitude: b.latitude,
+                longitude: b.longitude,
+                address: b.address,
+                google_maps_url: b.google_maps_url
+              })),
+              deliveryApps: (appsRes.data || []).filter(a => a.restaurant_id === r.id).map(a => ({
+                name: a.app_name,
+                color: getDeliveryAppColor(a.app_name),
+                url: a.app_url || undefined
+              })),
+              avgRating: 0
+            };
+          });
+          setRestaurantsData(dataMap);
+        }
+      }
     } catch (error: any) {
       toast({
         title: t("خطأ", "Error"),
@@ -333,65 +376,27 @@ const MyList = () => {
               {t("استكشف المطاعم", "Explore restaurants")}
             </Button>
           </motion.div> : <div className="space-y-3">
-            {filteredRestaurants.map((restaurant, index) => <motion.div key={restaurant.id} initial={{
-          opacity: 0,
-          y: 20
-        }} animate={{
-          opacity: 1,
-          y: 0
-        }} transition={{
-          delay: index * 0.05
-        }} className="bg-card rounded-2xl overflow-hidden shadow-card cursor-pointer hover:shadow-elevated transition-shadow" onClick={() => handleRestaurantClick(restaurant)} dir="rtl">
-                <div className="flex">
-                  {/* Image Section */}
-                  <div className="relative w-28 h-28 shrink-0">
-                    {restaurant.image_url ? <img src={restaurant.image_url} alt={restaurant.name} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-muted flex items-center justify-center">
-                        <span className="text-4xl">🍽️</span>
-                      </div>}
-                  </div>
-
-                  {/* Content Section */}
-                  <div className="flex-1 p-3">
-                    {/* Name */}
-                    <h3 className="font-bold text-base leading-tight truncate mb-1">{restaurant.name}</h3>
-
-                    {/* Cuisine with emoji */}
-                    {restaurant.category && <p className="text-sm text-muted-foreground mb-2">
-                        {getCuisineDisplay(restaurant.category).emoji} {getCuisineDisplay(restaurant.category).name}
-                      </p>}
-
-                    {/* Distance */}
-                    {restaurant.distance && <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
-                        <MapPin className="w-3 h-3 text-primary" />
-                        <span>{restaurant.distance}</span>
-                      </div>}
-
-                    {/* Notes */}
-                    {restaurant.notes && <p className="text-xs text-primary truncate">
-                        🍽️ {restaurant.notes}
-                      </p>}
-                  </div>
-
-                  {/* Action Buttons Column */}
-                  <div className="flex flex-col items-center justify-between p-2">
-                    {/* Rating */}
-                    <div className="flex items-center gap-1 bg-amber-100 px-2 py-1 rounded-lg">
-                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                      <span className="text-sm font-bold text-foreground font-mono">{(restaurant.rating || 0).toFixed(1)}</span>
-                    </div>
-
-                    {/* Map */}
-                    <button onClick={e => handleMapClick(restaurant, e)} className="p-1">
-                      <MapPin className="w-4 h-4 text-primary" />
-                    </button>
-
-                    {/* Delete */}
-                    <button onClick={e => handleDelete(restaurant.id, e)} className="p-1 text-muted-foreground hover:text-destructive transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>)}
+            {filteredRestaurants.map((restaurant, index) => {
+              const cuisineDisplay = getCuisineDisplay(restaurant.category);
+              const deliveryApps = restaurantsData[restaurant.name]?.deliveryApps || [];
+              
+              return (
+                <CompactRestaurantCard
+                  key={restaurant.id}
+                  name={restaurant.name}
+                  cuisine={`${cuisineDisplay.emoji} ${cuisineDisplay.name}`}
+                  image={restaurant.image_url || "/placeholder.svg"}
+                  rating={restaurant.rating || 0}
+                  distance={restaurant.distance || undefined}
+                  mapUrl={restaurantsData[restaurant.name]?.branches?.[0]?.google_maps_url}
+                  deliveryApps={deliveryApps}
+                  showDelete={true}
+                  onDeleteClick={() => handleDelete(restaurant.id, { stopPropagation: () => {} } as React.MouseEvent)}
+                  onMapClick={() => handleMapClick(restaurant, { stopPropagation: () => {} } as React.MouseEvent)}
+                  onClick={() => handleRestaurantClick(restaurant)}
+                />
+              );
+            })}
           </div>}
       </main>
 
