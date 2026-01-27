@@ -393,8 +393,8 @@ const UnifiedRestaurantDetail = ({
                   <Heart className={`w-5 h-5 transition-colors ${isFavorite ? "fill-primary text-primary" : "text-muted-foreground hover:text-foreground"}`} />
                 </button>
 
-                <button onClick={onClose} className="w-8 h-8 rounded-full bg-card/90 backdrop-blur-sm flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-                  <X className="w-5 h-5" />
+                <button onClick={onClose} className="w-8 h-8 rounded-full bg-card/90 backdrop-blur-sm flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors text-center gap-0 mx-0 my-[15px] py-0">
+                  <X className="w-5 h-5 my-0 mx-0 py-0 px-0 mr-0 mb-[4px]" />
                 </button>
               </div>
 
@@ -424,9 +424,9 @@ const UnifiedRestaurantDetail = ({
                         {ownerName && <p className="text-sm text-primary mt-1">{t(`من قائمة ${ownerName}`, `From ${ownerName}'s list`)}</p>}
                       </div>
 
-                      <div className="flex items-center gap-1.5 bg-amber-100 px-3 py-1.5 rounded-xl shrink-0">
+                      <div className="flex items-center gap-1.5 bg-amber-100 rounded-xl shrink-0 py-[5px] px-[16px]">
                         <span className="text-lg font-bold text-foreground">{avgRating}</span>
-                        <Star className="fill-amber-400 text-amber-400 h-[15px] w-[15px]" />
+                        <Star className="fill-amber-400 text-amber-400 h-[15px] w-[15px] py-px" />
                       </div>
                     </div>
 
