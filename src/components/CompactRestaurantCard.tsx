@@ -83,7 +83,7 @@ const CompactRestaurantCard = ({
             const url = app.url.startsWith('http') ? app.url : `https://${app.url}`;
             window.open(url, '_blank', 'noopener,noreferrer');
           }
-        }} className="inline-flex items-center justify-center px-2 pt-1.5 pb-1 rounded-full text-[10px] font-bold border hover:opacity-80 transition-opacity min-w-[50px] leading-none text-center" style={{
+        }} className="inline-flex items-center justify-center pt-1.5 pb-1 rounded-full text-[10px] font-bold hover:opacity-80 transition-opacity min-w-[50px] leading-none text-center px-[7px] font-sans border-2" style={{
           borderColor: app.color,
           color: app.color
         }}>
