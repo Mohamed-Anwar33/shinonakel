@@ -48,6 +48,7 @@ interface UnifiedRestaurantDetailProps {
   ownerName?: string;
   ownerId?: string;
   isOwner?: boolean;
+  onDeliveryAppClick?: (app: { name: string; color: string; url?: string | null }) => void;
 }
 const UnifiedRestaurantDetail = ({
   isOpen,
@@ -55,7 +56,8 @@ const UnifiedRestaurantDetail = ({
   restaurant,
   ownerName,
   ownerId,
-  isOwner = false
+  isOwner = false,
+  onDeliveryAppClick
 }: UnifiedRestaurantDetailProps) => {
   const {
     user,
@@ -358,6 +360,8 @@ const UnifiedRestaurantDetail = ({
 
   const handleDeliveryApp = (app: DeliveryApp) => {
     if (!app.url) return;
+    // Allow parent to track clicks (e.g., sponsored ads)
+    onDeliveryAppClick?.(app);
     const url = normalizeWebUrl(app.url);
     if (url) openExternal(url);
   };
