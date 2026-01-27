@@ -514,7 +514,8 @@ const Results = () => {
       latitude: primaryBranch?.latitude || restaurant.latitude,
       longitude: primaryBranch?.longitude || restaurant.longitude,
       address: primaryBranch?.address || restaurant.address,
-      deliveryApps: restaurant.deliveryApps
+      deliveryApps: restaurant.deliveryApps,
+      adId: restaurant.adId
     });
     setShowRestaurantDetail(true);
   };
@@ -652,6 +653,8 @@ const Results = () => {
                           </p>
                           <div className="flex items-center justify-center gap-2 flex-wrap">
                             {featuredRestaurant.deliveryApps.map(app => <button key={app.name} onClick={() => {
+                    // Track click for sponsored restaurant (featured card)
+                    handleDeliveryAppClick(featuredRestaurant, app);
                     if (app.url) {
                       window.open(app.url, '_blank', 'noopener,noreferrer');
                     }
@@ -700,7 +703,9 @@ const Results = () => {
       <UnifiedRestaurantDetail isOpen={showRestaurantDetail} onClose={() => {
       setShowRestaurantDetail(false);
       setSelectedRestaurantData(null);
-    }} restaurant={selectedRestaurantData} />
+    }} restaurant={selectedRestaurantData} onDeliveryAppClick={(app) => {
+      if (selectedRestaurantData) handleDeliveryAppClick(selectedRestaurantData, app);
+    }} />
     </div>;
 };
 export default Results;
