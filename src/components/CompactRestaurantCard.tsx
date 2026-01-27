@@ -41,7 +41,7 @@ const CompactRestaurantCard = ({
       {/* Left Side: Rating, Heart, Map (Vertical) */}
       <div className="flex flex-col items-center gap-2 shrink-0">
         <div className="inline-flex items-center justify-center gap-1 bg-amber-100 px-2 pt-1.5 pb-1 rounded-lg">
-          <span className="text-xs font-bold leading-none">{rating.toFixed(1)}</span>
+          <span className="text-xs font-bold leading-none mb-0 mr-[3px] px-[2px]">{rating.toFixed(1)}</span>
           <Star className="w-3 h-3 fill-accent text-accent" />
         </div>
 
@@ -66,7 +66,7 @@ const CompactRestaurantCard = ({
           window.open(`https://www.google.com/maps/search/?api=1&query=${searchQuery}`, '_blank', 'noopener,noreferrer');
         }
       }} className="w-8 h-8 flex items-center justify-center rounded-full bg-primary/10 hover:bg-primary/20 transition-colors pt-0.5">
-          <MapPin className="w-4 h-4 text-primary" />
+          <MapPin className="w-4 h-4 text-primary py-0 px-0 mb-[4px]" />
         </button>
       </div>
 
