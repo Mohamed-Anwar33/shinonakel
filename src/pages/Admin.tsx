@@ -94,7 +94,7 @@ interface ContactRequest {
 }
 
 const ADMIN_PERMISSIONS = [
-  { id: "weekly_picks", label: "الأكثر رواجاً" },
+  { id: "most_popular", label: "الأكثر رواجاً" },
   { id: "ads", label: "الإعلانات" },
   { id: "users", label: "المستخدمين" },
   { id: "manage_admins", label: "إدارة المشرفين" },
@@ -134,7 +134,7 @@ const Admin = () => {
   const [adRestaurantId, setAdRestaurantId] = useState("");
   const [adRestaurantSearchQuery, setAdRestaurantSearchQuery] = useState("");
   const [showAdRestaurantDropdown, setShowAdRestaurantDropdown] = useState(false);
-  const [adPlacements, setAdPlacements] = useState<string[]>(["spin_popup"]);
+  const [adPlacements, setAdPlacements] = useState<string[]>(["pinned_ad"]);
   const [adStartDate, setAdStartDate] = useState<Date>(new Date());
   const [adEndDate, setAdEndDate] = useState<Date | null>(null);
   const [adPopupCount, setAdPopupCount] = useState<number>(10);
@@ -211,8 +211,8 @@ const Admin = () => {
       (ad.restaurant?.name_en && ad.restaurant.name_en.toLowerCase().includes(adSearchQuery.toLowerCase()));
 
     const matchesPlacement = adPlacementFilter === "" ||
-      (adPlacementFilter === "weekly_picks" && ad.placement === "weekly_picks") ||
-      (adPlacementFilter === "spin_popup" && (ad.placement === "spin_popup_all" || ad.placement.startsWith("spin_popup_cuisine_") || ad.placement === "spin_popup"));
+      (adPlacementFilter === "most_popular" && ad.placement === "most_popular") ||
+      (adPlacementFilter === "pinned_ad" && (ad.placement === "pinned_ad_all" || ad.placement.startsWith("pinned_ad_cuisine_") || ad.placement === "pinned_ad"));
 
     return matchesSearch && matchesPlacement;
   });
@@ -491,18 +491,18 @@ const Admin = () => {
       return;
     }
 
-    // Validate end date for weekly picks
-    if (adPlacements.includes("weekly_picks") && !adEndDate) {
+    // Validate end date for most popular
+    if (adPlacements.includes("most_popular") && !adEndDate) {
       toast({
         title: "خطأ",
-        description: "يرجى تحديد تاريخ النهاية لاختيارات الأسبوع",
+        description: "يرجى تحديد تاريخ النهاية للأكثر رواجاً",
         variant: "destructive",
       });
       return;
     }
 
     // Validate pinned ad settings
-    if (adPlacements.includes("spin_popup")) {
+    if (adPlacements.includes("pinned_ad")) {
       if (pinnedAdType === "cuisine" && !pinnedAdCuisine) {
         toast({
           title: "خطأ",
@@ -531,11 +531,11 @@ const Admin = () => {
       const endDateValue = adEndDate ? format(adEndDate, "yyyy-MM-dd") : format(farFutureDate, "yyyy-MM-dd");
 
       // Handle pinned ads based on type
-      if (adPlacements.includes("spin_popup")) {
+      if (adPlacements.includes("pinned_ad")) {
         // Always add cuisine placement for pinned ads
         adsToInsert.push({
           restaurant_id: adRestaurantId,
-          placement: `spin_popup_cuisine_${pinnedAdCuisine}`,
+          placement: `pinned_ad_cuisine_${pinnedAdCuisine}`,
           start_date: format(adStartDate, "yyyy-MM-dd"),
           end_date: endDateValue,
           is_active: true,
@@ -547,7 +547,7 @@ const Admin = () => {
         if (pinnedAdType === "all_and_cuisine") {
           adsToInsert.push({
             restaurant_id: adRestaurantId,
-            placement: "spin_popup_all",
+            placement: "pinned_ad_all",
             start_date: format(adStartDate, "yyyy-MM-dd"),
             end_date: endDateValue,
             is_active: true,
@@ -557,11 +557,11 @@ const Admin = () => {
         }
       }
 
-      // Handle weekly picks
-      if (adPlacements.includes("weekly_picks")) {
+      // Handle most popular
+      if (adPlacements.includes("most_popular")) {
         adsToInsert.push({
           restaurant_id: adRestaurantId,
-          placement: "weekly_picks",
+          placement: "most_popular",
           start_date: format(adStartDate, "yyyy-MM-dd"),
           end_date: endDateValue,
           is_active: true,
@@ -581,7 +581,7 @@ const Admin = () => {
 
       // Reset form
       setAdRestaurantId("");
-      setAdPlacements(["spin_popup"]);
+      setAdPlacements(["pinned_ad"]);
       setAdStartDate(new Date());
       setAdEndDate(null);
       setAdPopupCount(10);
@@ -990,7 +990,7 @@ const Admin = () => {
           start_date: format(editAdStartDate, "yyyy-MM-dd"),
           end_date: format(editAdEndDate, "yyyy-MM-dd"),
           is_active: editAdIsActive,
-          max_views: editAdPlacements.includes("spin_popup") ? editAdMaxViews : null,
+          max_views: editAdPlacements.includes("pinned_ad") || editAdPlacements[0]?.startsWith("pinned_ad") ? editAdMaxViews : null,
         })
         .eq("id", editingAd.id);
 
@@ -1675,8 +1675,8 @@ const Admin = () => {
                       <div className="flex flex-wrap gap-2 justify-end">
                         <button
                           type="button"
-                          onClick={() => setAdPlacements(["spin_popup"])}
-                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${adPlacements.includes("spin_popup")
+                          onClick={() => setAdPlacements(["pinned_ad"])}
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${adPlacements.includes("pinned_ad")
                             ? "bg-primary text-primary-foreground"
                             : "bg-muted text-muted-foreground hover:bg-muted/80"
                             }`}
@@ -1685,8 +1685,8 @@ const Admin = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setAdPlacements(["weekly_picks"])}
-                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${adPlacements.includes("weekly_picks")
+                          onClick={() => setAdPlacements(["most_popular"])}
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${adPlacements.includes("most_popular")
                             ? "bg-primary text-primary-foreground"
                             : "bg-muted text-muted-foreground hover:bg-muted/80"
                             }`}
@@ -1747,7 +1747,7 @@ const Admin = () => {
                     </div>
                   </div>
 
-                  {adPlacements.includes("spin_popup") && (
+                  {adPlacements.includes("pinned_ad") && (
                     <div className="space-y-4 p-4 border rounded-lg bg-white">
                       <Label className="text-right block font-semibold">إعدادات الإعلان المثبت</Label>
 
@@ -1868,21 +1868,21 @@ const Admin = () => {
                     </div>
                     <div className="space-y-2 text-right order-1">
                       <Label>
-                        تاريخ النهاية {adPlacements.includes("weekly_picks") ? "*" : "(اختياري)"}
+                        تاريخ النهاية {adPlacements.includes("most_popular") ? "*" : "(اختياري)"}
                       </Label>
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button variant="outline" className="w-full justify-end text-right flex-row-reverse">
                             {adEndDate
                               ? format(adEndDate, "PPP", { locale: ar })
-                              : adPlacements.includes("weekly_picks")
+                              : adPlacements.includes("most_popular")
                                 ? "اختر تاريخ النهاية"
                                 : "حتى انتهاء المشاهدات"}
                             <CalendarIcon className="mr-2 h-4 w-4" />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
-                          {adPlacements.includes("spin_popup") && (
+                          {adPlacements.includes("pinned_ad") && (
                             <div className="p-2 border-b">
                               <Button
                                 variant="ghost"
@@ -1904,7 +1904,7 @@ const Admin = () => {
                           />
                         </PopoverContent>
                       </Popover>
-                      {!adEndDate && adPlacements.includes("spin_popup") && (
+                      {!adEndDate && adPlacements.includes("pinned_ad") && (
                         <p className="text-xs text-muted-foreground text-right">
                           سيعمل الإعلان حتى تنتهي المشاهدات
                         </p>
@@ -1942,8 +1942,8 @@ const Admin = () => {
                       </SelectTrigger>
                       <SelectContent align="end">
                         <SelectItem value="all" className="text-right justify-end">الكل</SelectItem>
-                        <SelectItem value="weekly_picks" className="text-right justify-end">اختيارات الأسبوع</SelectItem>
-                        <SelectItem value="spin_popup" className="text-right justify-end">إعلان مثبت</SelectItem>
+                        <SelectItem value="most_popular" className="text-right justify-end">الأكثر رواجاً</SelectItem>
+                        <SelectItem value="pinned_ad" className="text-right justify-end">إعلان مثبت</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1975,13 +1975,13 @@ const Admin = () => {
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            {ad.placement === "weekly_picks"
-                              ? "اختيارات الأسبوع"
-                              : ad.placement === "spin_popup_all"
+                            {ad.placement === "most_popular"
+                              ? "الأكثر رواجاً"
+                              : ad.placement === "pinned_ad_all"
                                 ? "إعلان مثبت (الكل)"
-                                : ad.placement.startsWith("spin_popup_cuisine_")
-                                  ? `إعلان مثبت (${ad.placement.replace("spin_popup_cuisine_", "")})`
-                                  : ad.placement === "spin_popup"
+                                : ad.placement.startsWith("pinned_ad_cuisine_")
+                                  ? `إعلان مثبت (${ad.placement.replace("pinned_ad_cuisine_", "")})`
+                                  : ad.placement === "pinned_ad"
                                     ? "إعلان مثبت"
                                     : ad.placement
                             }
@@ -2410,12 +2410,12 @@ const Admin = () => {
                 <div className="flex items-center gap-2 flex-row-reverse">
                   <Checkbox
                     id="edit-placement-spin"
-                    checked={editAdPlacements.includes("spin_popup")}
+                    checked={editAdPlacements.includes("pinned_ad") || editAdPlacements.some(p => p.startsWith("pinned_ad"))}
                     onCheckedChange={(checked) => {
                       if (checked) {
-                        setEditAdPlacements([...editAdPlacements, "spin_popup"]);
+                        setEditAdPlacements([...editAdPlacements, "pinned_ad"]);
                       } else {
-                        setEditAdPlacements(editAdPlacements.filter(p => p !== "spin_popup"));
+                        setEditAdPlacements(editAdPlacements.filter(p => !p.startsWith("pinned_ad")));
                       }
                     }}
                   />
@@ -2424,22 +2424,22 @@ const Admin = () => {
                 <div className="flex items-center gap-2 flex-row-reverse">
                   <Checkbox
                     id="edit-placement-weekly"
-                    checked={editAdPlacements.includes("weekly_picks")}
+                    checked={editAdPlacements.includes("most_popular")}
                     onCheckedChange={(checked) => {
                       if (checked) {
-                        setEditAdPlacements([...editAdPlacements, "weekly_picks"]);
+                        setEditAdPlacements([...editAdPlacements, "most_popular"]);
                       } else {
-                        setEditAdPlacements(editAdPlacements.filter(p => p !== "weekly_picks"));
+                        setEditAdPlacements(editAdPlacements.filter(p => p !== "most_popular"));
                       }
                     }}
                   />
-                  <Label htmlFor="edit-placement-weekly" className="cursor-pointer">اختيارات الأسبوع</Label>
+                  <Label htmlFor="edit-placement-weekly" className="cursor-pointer">الأكثر رواجاً</Label>
                 </div>
               </div>
             </div>
 
-            {/* Max Views for spin_popup */}
-            {editAdPlacements.includes("spin_popup") && (
+            {/* Max Views for pinned_ad */}
+            {(editAdPlacements.includes("pinned_ad") || editAdPlacements.some(p => p.startsWith("pinned_ad"))) && (
               <div className="space-y-2">
                 <Label className="text-right block">عدد مرات الظهور</Label>
                 <Input

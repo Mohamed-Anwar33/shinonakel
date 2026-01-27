@@ -116,11 +116,11 @@ const Statistics = () => {
       const totalAdClicks = ads?.reduce((sum, a) => sum + (a.clicks_count || 0), 0) || 0;
 
       // Ads by placement
-      const spinPopupAds = ads?.filter((a) => a.placement === "spin_popup").length || 0;
-      const weeklyPicksAds = ads?.filter((a) => a.placement === "weekly_picks").length || 0;
+      const pinnedAds = ads?.filter((a) => a.placement === "pinned_ad" || a.placement === "pinned_ad_all" || a.placement.startsWith("pinned_ad_cuisine_")).length || 0;
+      const mostPopularAds = ads?.filter((a) => a.placement === "most_popular").length || 0;
       const adsByPlacement = [
-        { name: "بوب أب السبن", value: spinPopupAds },
-        { name: "اختيارات الأسبوع", value: weeklyPicksAds },
+        { name: "إعلان مثبت", value: pinnedAds },
+        { name: "الأكثر رواجاً", value: mostPopularAds },
       ];
 
       // تحسين: Daily activity - تنفيذ جميع استعلامات الأيام بالتوازي
