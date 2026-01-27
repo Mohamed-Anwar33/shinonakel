@@ -100,8 +100,8 @@ const NotFound = () => {
           </h2>
           <p className="text-lg text-muted-foreground max-w-md mx-auto">
             {t(
-              "يبدو أن الصفحة اللي تدور عليها مش موجودة أو تم نقلها",
-              "Looks like the page you're looking for doesn't exist or has been moved"
+              "الصفحة اللي تدور عليها مو موجودة",
+              "The page you're looking for doesn't exist"
             )}
           </p>
         </motion.div>
