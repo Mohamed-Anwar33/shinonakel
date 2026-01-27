@@ -347,11 +347,12 @@ const Results = () => {
     const cuisine = cuisines.find(c => c.name === category);
     return language === "en" && cuisine?.name_en ? cuisine.name_en : category;
   }, [category, cuisines, language]);
+  // Request location when switching to map view or enabling nearby filter
   useEffect(() => {
-    if (filterNearby && !userLat && !userLon && !isLoadingLocation) {
+    if ((filterNearby || viewMode === "map") && !userLat && !userLon && !isLoadingLocation) {
       requestLocation();
     }
-  }, [filterNearby, userLat, userLon, isLoadingLocation, requestLocation]);
+  }, [filterNearby, viewMode, userLat, userLon, isLoadingLocation, requestLocation]);
   const toggleFavorite = async (restaurant: any) => {
     if (!user || isGuest) {
       setShowGuestPrompt(true);
