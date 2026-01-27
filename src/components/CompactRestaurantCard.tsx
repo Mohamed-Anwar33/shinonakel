@@ -77,7 +77,7 @@ const CompactRestaurantCard = ({
 
         {/* Delivery Apps */}
         {deliveryApps.length > 0 && <div className="flex items-center gap-1.5 flex-wrap flex-row-reverse justify-end">
-            {deliveryApps.slice(0, 3).map(app => <button key={app.name} onClick={e => {
+            {deliveryApps.map(app => <button key={app.name} onClick={e => {
           e.stopPropagation();
           if (app.url) {
             const url = app.url.startsWith('http') ? app.url : `https://${app.url}`;
