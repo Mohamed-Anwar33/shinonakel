@@ -535,6 +535,7 @@ export type Database = {
     Functions: {
       can_view_profile: { Args: { target_id: string }; Returns: boolean }
       can_view_restaurants: { Args: { owner_id: string }; Returns: boolean }
+      deactivate_expired_ads: { Args: never; Returns: undefined }
       get_restaurant_avg_rating: {
         Args: { restaurant_uuid: string }
         Returns: number
