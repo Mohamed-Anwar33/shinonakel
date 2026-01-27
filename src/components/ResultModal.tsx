@@ -219,17 +219,23 @@ const ResultModal = ({ isOpen, onClose, category }: ResultModalProps) => {
           user_id: user?.id || null
         });
 
-        // Get current views count and increment
+        // Get current views count and max_views, then increment
         const { data: currentAd } = await supabase
           .from("advertisements")
-          .select("views_count")
+          .select("views_count, max_views")
           .eq("id", matchingAdId)
           .single();
 
         if (currentAd) {
+          const newViewsCount = (currentAd.views_count || 0) + 1;
+          const shouldDeactivate = currentAd.max_views && newViewsCount >= currentAd.max_views;
+          
           await supabase
             .from("advertisements")
-            .update({ views_count: (currentAd.views_count || 0) + 1 })
+            .update({ 
+              views_count: newViewsCount,
+              ...(shouldDeactivate && { is_active: false })
+            })
             .eq("id", matchingAdId);
         }
       }
