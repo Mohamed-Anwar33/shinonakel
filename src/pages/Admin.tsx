@@ -1624,24 +1624,20 @@ const Admin = () => {
                             </div>
                           )}
                           <div className="text-right">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-row-reverse">
+                              <h3 className="font-semibold">{restaurant.name}</h3>
                               {restaurant.name_en && (
                                 <span className="text-sm text-muted-foreground">({restaurant.name_en})</span>
                               )}
-                              <h3 className="font-semibold">{restaurant.name}</h3>
+                              <span className="text-xs text-muted-foreground">
+                                👆 {restaurantInteractions[restaurant.id] || 0} نقرة
+                              </span>
                             </div>
                             <p className="text-sm text-muted-foreground">
                               {restaurant.cuisines && restaurant.cuisines.length > 0
                                 ? restaurant.cuisines.join(" • ")
                                 : restaurant.cuisine}
                             </p>
-                            {/* عدد النقرات */}
-                            <div className="flex items-center gap-1 mt-1">
-                              <Eye className="w-3 h-3 text-muted-foreground" />
-                              <span className="text-xs text-muted-foreground">
-                                {restaurantInteractions[restaurant.id] || 0} نقرة
-                              </span>
-                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
