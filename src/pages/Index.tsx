@@ -335,7 +335,7 @@ const Index = () => {
           {isLoadingPicks ? <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
             </div> : weeklyPicks.length === 0 ? <div className="text-center py-8 text-muted-foreground">
-              <p>{t("لا توجد اختيارات لهذا الأسبوع", "No picks for this week")}</p>
+              <p>{t("لا يوجد", "None available")}</p>
             </div> : <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
               {weeklyPicks.map(restaurant => <motion.div key={restaurant.id} initial={{
             opacity: 0,
