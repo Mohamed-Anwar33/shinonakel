@@ -407,13 +407,58 @@ const Admin = () => {
     );
   };
 
-  // Extract coordinates from Google Maps URL via Edge Function
+  // Extract coordinates from Google Maps URL (Client-Side + Edge Function Fallback)
   const extractCoordinatesFromUrl = async (mapsUrl: string, index: number, isEditMode: boolean = false) => {
     if (!mapsUrl || !isValidGoogleMapsUrl(mapsUrl)) return;
 
     const updateState = isEditMode ? setEditBranches : setBranches;
 
-    // Set extracting state
+    // Helper: Try to parse coordinates locally
+    const parseLocal = (url: string) => {
+      try {
+        // Pattern 1: !3d and !4d (Most accurate for Place URLs)
+        const dataPattern = /!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/;
+        const dataMatch = url.match(dataPattern);
+        if (dataMatch) return { lat: parseFloat(dataMatch[1]), lng: parseFloat(dataMatch[2]) };
+
+        // Pattern 2: @lat,lng (Viewport center)
+        const atPattern = /@(-?\d+\.?\d*),(-?\d+\.?\d*)/;
+        const atMatch = url.match(atPattern);
+        if (atMatch) return { lat: parseFloat(atMatch[1]), lng: parseFloat(atMatch[2]) };
+
+        // Pattern 3: ll= or q=
+        const llPattern = /[?&](?:ll|q)=(-?\d+\.?\d*),(-?\d+\.?\d*)/;
+        const llMatch = url.match(llPattern);
+        if (llMatch) return { lat: parseFloat(llMatch[1]), lng: parseFloat(llMatch[2]) };
+
+        // Pattern 4: place/lat,lng
+        const placePattern = /\/place\/(-?\d+\.?\d*),(-?\d+\.?\d*)/;
+        const placeMatch = url.match(placePattern);
+        if (placeMatch) return { lat: parseFloat(placeMatch[1]), lng: parseFloat(placeMatch[2]) };
+
+        return null;
+      } catch { return null; }
+    };
+
+    // 1. Try Local Parse
+    const localCoords = parseLocal(mapsUrl);
+    if (localCoords && isValidCoordinate(localCoords.lat, localCoords.lng)) {
+      updateState((prev: any) => {
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          latitude: localCoords.lat.toString(),
+          longitude: localCoords.lng.toString(),
+          isExtracting: false,
+          extractionError: undefined
+        };
+        return updated;
+      });
+      // Skip toast for auto-extract to avoid spam, or keep it? Keep for now.
+      return;
+    }
+
+    // 2. Fallback to Edge Function (Logic for Short URLs or redirects)
     updateState((prev: any) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], isExtracting: true, extractionError: undefined };
@@ -440,7 +485,7 @@ const Admin = () => {
           return updated;
         });
         toast({
-          title: "تم استخراج الإحداثيات",
+          title: "تم استخراج الإحداثيات (Server)",
           description: `Lat: ${data.latitude.toFixed(6)}, Lng: ${data.longitude.toFixed(6)}`,
         });
       } else {
@@ -466,6 +511,11 @@ const Admin = () => {
         return updated;
       });
     }
+  };
+
+  // Helper inside component or imported? Define local validate to match edge function logic
+  const isValidCoordinate = (lat: number, lng: number) => {
+    return !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
   };
 
   const handleBranchChange = (index: number, field: string, value: string) => {
