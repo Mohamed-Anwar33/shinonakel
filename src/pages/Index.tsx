@@ -112,16 +112,9 @@ const Index = () => {
 
       // If there are no active weekly-picks ads, we still show a fallback list
       // (so guests see the section like signed-in users), but without ad tracking/badges.
+      // If no active ads, show empty section instead of fallback
       if (!ads || ads.length === 0) {
-        const {
-          data: fallbackRestaurants,
-          error: fallbackError
-        } = await supabase.from("restaurants").select("*").order("created_at", {
-          ascending: false
-        }).limit(8);
-        if (fallbackError) throw fallbackError;
-        const picksWithDetails = await buildWeeklyPickDetails(fallbackRestaurants || [], []);
-        setWeeklyPicks(picksWithDetails);
+        setWeeklyPicks([]);
         return;
       }
       const restaurantIds = ads.map(ad => ad.restaurant_id);
