@@ -589,6 +589,36 @@ const Admin = () => {
       return;
     }
 
+    // Check for duplicate restaurant (Robust & Case-Insensitive)
+    const normalize = (s?: string) => (s ?? "").trim();
+    const restaurantNameN = normalize(restaurantName);
+    const restaurantNameEnN = normalize(restaurantNameEn);
+
+    const { data: existingRestaurant } = await supabase
+      .from("restaurants")
+      .select("id, name, name_en")
+      .eq("is_deleted", false)
+      .or(
+        [
+          `name.ilike.${restaurantNameN}`,
+          `name_en.ilike.${restaurantNameEnN}`,
+          // Cross-check: maybe they entered English name in Arabic field or vice versa
+          `name.ilike.${restaurantNameEnN}`,
+          `name_en.ilike.${restaurantNameN}`,
+        ].join(",")
+      )
+      .limit(1)
+      .maybeSingle();
+
+    if (existingRestaurant) {
+      toast({
+        title: "موجود مسبقاً",
+        description: "هذا المطعم موجود بالفعل في النظام",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmittingRestaurant(true);
     try {
       // Insert restaurant
@@ -2775,7 +2805,7 @@ const Admin = () => {
                     checked={editAdPlacements.includes("pinned_ad") || editAdPlacements.some(p => p.startsWith("pinned_ad"))}
                     onCheckedChange={(checked) => {
                       if (checked) {
-                        setEditAdPlacements([...editAdPlacements, "pinned_ad"]);
+                        setEditAdPlacements([...editAdPlacements, "pinned_ad_all"]);
                       } else {
                         setEditAdPlacements(editAdPlacements.filter(p => !p.startsWith("pinned_ad")));
                       }
