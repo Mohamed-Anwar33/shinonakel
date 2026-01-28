@@ -658,10 +658,16 @@ const Results = () => {
     handleRestaurantInteraction(restaurant, 'location', url);
   };
 
-  // Get featured restaurant - either selected one or first one. 
-  // If Near By is active, we force the first result (which is nearest).
-  const featuredRestaurant = visibleRestaurants.length > 0 ? visibleRestaurants[0] : null;
-  const moreRestaurants = visibleRestaurants.slice(1); // All visible restaurants except the featured one
+  // Get featured restaurant - ONLY show if there's an active pinned ad
+  // If no pinned ad exists, all restaurants appear in the "More" list equally
+  const hasPinnedAd = pinnedAdRestaurantId !== null;
+  const pinnedAdRestaurant = hasPinnedAd ? visibleRestaurants.find(r => r.isSponsored) : null;
+  
+  // If there's a pinned ad, show it as featured; otherwise all go to moreRestaurants
+  const featuredRestaurant = pinnedAdRestaurant;
+  const moreRestaurants = hasPinnedAd 
+    ? visibleRestaurants.filter(r => r.id !== pinnedAdRestaurant?.id)
+    : visibleRestaurants;
   const handleRestaurantClick = (restaurant: any) => {
     // Prepare data for popup
     const primaryBranch = restaurant.branches?.[0] || restaurants.find(r => r.id === restaurant.id)?.branches?.[0];
@@ -763,12 +769,12 @@ const Results = () => {
                       <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-4">
                         <img src={featuredRestaurant.image} alt={language === "en" && featuredRestaurant.name_en ? featuredRestaurant.name_en : featuredRestaurant.name} className="w-full h-full object-cover" />
 
-                        {/* Ad Badge - Inside Image - Hide when using nearby filter */}
-                        {!filterNearby && <div className="absolute top-3 right-3">
+                        {/* Ad Badge - Always show for pinned ad */}
+                        <div className="absolute top-3 right-3">
                             <span className="inline-flex items-center justify-center bg-accent text-accent-foreground font-bold rounded-full shadow-soft py-[3px] px-[13px] text-center font-sans text-base">
-                              {t("إعلان", "Ad")}
+                              {t("إعلان مثبت", "Pinned Ad")}
                             </span>
-                          </div>}
+                          </div>
 
                         {/* Favorite Button - Inside Image */}
                         <button onClick={e => {
@@ -831,12 +837,14 @@ const Results = () => {
                     </div>
                   </motion.div>}
 
-                {/* More Restaurants Section */}
+                {/* More Restaurants Section - Show title based on context */}
                 {moreRestaurants.length > 0 && <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-lg">{t("المزيد", "More")}</h3>
+                      <h3 className="font-bold text-lg">
+                        {hasPinnedAd ? t("المزيد", "More") : t("المطاعم", "Restaurants")}
+                      </h3>
                       <span className="text-sm text-muted-foreground">
-                        {filteredRestaurants.length - 1} {t("مطعم", "restaurants")}
+                        {hasPinnedAd ? filteredRestaurants.length - 1 : filteredRestaurants.length} {t("مطعم", "restaurants")}
                       </span>
                     </div>
 
