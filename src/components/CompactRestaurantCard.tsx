@@ -81,19 +81,20 @@ const CompactRestaurantCard = ({
 
       {/* Left Side: Rating, Heart/Delete, Map (Vertical) */}
       <div className="flex flex-col items-center gap-2 shrink-0">
-        <div className="flex flex-col gap-1 items-center">
-          <div className="inline-flex items-center justify-center gap-1 bg-amber-100 px-2 pt-1.5 pb-1 rounded-lg">
-            <span className="text-xs font-bold leading-none mb-0 mr-[3px] px-[2px] font-mono">{rating.toFixed(1)}</span>
-            <Star className="w-3 h-3 fill-accent text-accent" />
-          </div>
-
-          {/* Distance Display - Moved here as requested */}
-          {distance && showLocationIcon && (
-            <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground font-medium">
-              <span dir="ltr">{distance}</span>
-              <Navigation className="w-2.5 h-2.5" />
+        <div className="flex flex-row gap-1 items-center justify-center">
+          {/* Distance Badge */}
+          {distance && (
+            <div className="inline-flex items-center justify-center bg-gray-100 px-1.5 py-1 rounded-md whitespace-nowrap border border-gray-200 min-w-[40px]">
+              <Navigation className="w-2.5 h-2.5 text-muted-foreground ml-0.5" />
+              <span className="text-[9px] font-bold text-gray-600 leading-none pt-0.5" dir="ltr">{distance}</span>
             </div>
           )}
+
+          {/* Rating Badge */}
+          <div className="inline-flex items-center justify-center gap-1 bg-amber-100 px-1.5 pt-1.5 pb-1 rounded-lg whitespace-nowrap shadow-sm min-w-[32px]">
+            <span className="text-xs font-bold leading-none mb-0 font-mono">{rating.toFixed(1)}</span>
+            <Star className="w-2.5 h-2.5 fill-accent text-accent" />
+          </div>
         </div>
 
         {showDelete ? (
@@ -185,7 +186,7 @@ const CompactRestaurantCard = ({
       <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0">
         <img src={image} alt={name} className="w-full h-full object-cover" />
       </div>
-    </motion.div>
+    </motion.div >
   );
 };
 

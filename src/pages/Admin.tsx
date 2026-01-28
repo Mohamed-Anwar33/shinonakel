@@ -17,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowRight, Plus, Trash2, CalendarIcon, Store, Megaphone, Users, MapPin, X, Upload, UserPlus, ExternalLink, Pencil, MessageCircle, Eye, Mail, Phone, CheckCircle, Clock, XCircle, FileText } from "lucide-react";
 import AdReportDialog from "@/components/AdReportDialog";
 import LegalPagesEditor from "@/components/LegalPagesEditor";
+// Removed DataHealthCheck import
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { format, addDays, addWeeks, addMonths } from "date-fns";
@@ -102,6 +103,7 @@ const ADMIN_PERMISSIONS = [
   { id: "users", label: "المستخدمين" },
   { id: "manage_admins", label: "إدارة المشرفين" },
   { id: "legal_pages", label: "الصفحات القانونية" },
+  { id: "health_check", label: "فحص البيانات" },
 ];
 
 const Admin = () => {
@@ -344,8 +346,8 @@ const Admin = () => {
     setIsUploadingImage(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt} `;
-      const filePath = `restaurant - images / ${fileName} `;
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `restaurant-images/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('restaurant-images')
@@ -512,12 +514,24 @@ const Admin = () => {
       return;
     }
 
+
     // Validate Google Maps URLs
     const invalidBranches = branches.filter(b => b.mapsUrl && !isValidGoogleMapsUrl(b.mapsUrl));
     if (invalidBranches.length > 0) {
       toast({
         title: "رابط غير صحيح",
         description: "يرجى إدخال رابط Google Maps صحيح (مثل: https://maps.google.com/...)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate Delivery Apps URLs
+    const invalidApps = selectedDeliveryApps.filter(a => !a.url || a.url.trim() === "");
+    if (invalidApps.length > 0) {
+      toast({
+        title: "رابط مفقود",
+        description: "يرجى إدخال رابط لجميع تطبيقات التوصيل المختارة",
         variant: "destructive",
       });
       return;
@@ -546,12 +560,17 @@ const Admin = () => {
       // Insert branches with extracted coordinates
       const validBranches = branches.filter((b) => b.mapsUrl || b.latitude || b.longitude);
       if (validBranches.length > 0) {
-        const branchesData = validBranches.map((b) => ({
-          restaurant_id: restaurant.id,
-          google_maps_url: b.mapsUrl || null,
-          latitude: b.latitude ? parseFloat(b.latitude) : null,
-          longitude: b.longitude ? parseFloat(b.longitude) : null,
-        }));
+        const branchesData = validBranches.map((b) => {
+          const lat = b.latitude === "" || b.latitude == null ? null : Number(b.latitude);
+          const lng = b.longitude === "" || b.longitude == null ? null : Number(b.longitude);
+
+          return {
+            restaurant_id: restaurant.id,
+            google_maps_url: b.mapsUrl || null,
+            latitude: Number.isFinite(lat) ? lat : null,
+            longitude: Number.isFinite(lng) ? lng : null,
+          };
+        });
 
         const { error: branchError } = await supabase.from("restaurant_branches").insert(branchesData);
         if (branchError) throw branchError;
@@ -994,6 +1013,17 @@ const Admin = () => {
       return;
     }
 
+    // Validate Delivery Apps URLs
+    const invalidApps = editDeliveryApps.filter(a => !a.url || a.url.trim() === "");
+    if (invalidApps.length > 0) {
+      toast({
+        title: "رابط مفقود",
+        description: "يرجى إدخال رابط لجميع تطبيقات التوصيل المختارة",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsUpdatingRestaurant(true);
     try {
       // Update restaurant info
@@ -1040,12 +1070,19 @@ const Admin = () => {
 
       const validBranches = editBranches.filter((b) => b.mapsUrl || b.latitude || b.longitude);
       if (validBranches.length > 0) {
-        const branchesData = validBranches.map((b) => ({
-          restaurant_id: editingRestaurant.id,
-          google_maps_url: b.mapsUrl || null,
-          latitude: null, // Removed latitude input
-          longitude: null, // Removed longitude input
-        }));
+        const branchesData = validBranches.map((b) => {
+          const lat = b.latitude === "" || b.latitude == null ? null : Number(b.latitude);
+          const lng = b.longitude === "" || b.longitude == null ? null : Number(b.longitude);
+
+          return {
+            restaurant_id: editingRestaurant.id,
+            google_maps_url: b.mapsUrl || null,
+            latitude: Number.isFinite(lat) ? lat : null,
+            longitude: Number.isFinite(lng) ? lng : null,
+          };
+        });
+
+        console.log("Saving branches (Edit):", branchesData);
 
         const { error: branchError } = await supabase
           .from("restaurant_branches")
@@ -1254,7 +1291,7 @@ const Admin = () => {
               الطلبات
               <MessageCircle className="w-4 h-4 mr-2 ml-2" />
             </TabsTrigger>
-            <TabsTrigger value="admins" className="textسم">
+            <TabsTrigger value="admins" className="text-sm">
               المشرفين
               <Users className="w-4 h-4 mr-2 ml-2" />
             </TabsTrigger>
@@ -1659,7 +1696,8 @@ const Admin = () => {
                               ⚠️ الرابط غير صحيح - يجب أن يكون رابط Google Maps
                             </p>
                           )}
-                          {/* Extraction Status */}
+
+                          {/* Extraction Status Messages */}
                           {branch.isExtracting && (
                             <p className="text-xs text-muted-foreground text-right" dir="rtl">
                               ⏳ جاري استخراج الإحداثيات...
@@ -1670,35 +1708,30 @@ const Admin = () => {
                               ❌ {branch.extractionError}
                             </p>
                           )}
-                          {(branch.latitude || branch.longitude) && !branch.isExtracting && !branch.extractionError && (
-                            <p className="text-xs text-green-600 text-right font-medium" dir="rtl">
-                              ✅ تم تحديد الموقع: {parseFloat(branch.latitude!).toFixed(4)}, {parseFloat(branch.longitude!).toFixed(4)}
-                            </p>
-                          )}
 
                           {/* Manual Lat/Lng Inputs (Always Visible for Verification/Edit) */}
-                          <div className="grid grid-cols-2 gap-2 mt-2">
+                          <div className="grid grid-cols-2 gap-2 mt-2" dir="ltr">
                             <div className="space-y-1">
-                              <Label className="text-xs text-right block text-muted-foreground">خط العرض (Latitude)</Label>
+                              <label className="text-xs text-muted-foreground">Latitude</label>
                               <Input
-                                placeholder="مثال: 29.3759"
-                                value={branch.latitude || ''}
+                                placeholder="ex: 29.375"
+                                value={branch.latitude}
                                 onChange={(e) => handleBranchChange(index, "latitude", e.target.value)}
-                                className="text-left text-xs h-8"
-                                dir="ltr"
+                                className={!branch.latitude ? "border-amber-500 bg-amber-50/50" : ""}
                               />
                             </div>
                             <div className="space-y-1">
-                              <Label className="text-xs text-right block text-muted-foreground">خط الطول (Longitude)</Label>
+                              <label className="text-xs text-muted-foreground">Longitude</label>
                               <Input
-                                placeholder="مثال: 47.9774"
-                                value={branch.longitude || ''}
+                                placeholder="ex: 47.977"
+                                value={branch.longitude}
                                 onChange={(e) => handleBranchChange(index, "longitude", e.target.value)}
-                                className="text-left text-xs h-8"
-                                dir="ltr"
+                                className={!branch.longitude ? "border-amber-500 bg-amber-50/50" : ""}
                               />
                             </div>
                           </div>
+
+
                         </div>
                         <p className="text-xs text-muted-foreground text-right" dir="rtl">
                           💡 أدخل رابط Google Maps وسيتم استخراج الإحداثيات تلقائياً
@@ -1735,7 +1768,7 @@ const Admin = () => {
                           <div key={app.name} className="flex items-center gap-2 flex-row-reverse">
                             <span className="text-sm min-w-[80px] text-right">{app.name}:</span>
                             <Input
-                              placeholder="رابط التطبيق (اختياري)"
+                              placeholder="رابط التطبيق *"
                               value={app.url}
                               onChange={(e) => handleDeliveryAppUrlChange(app.name, e.target.value)}
                               dir="ltr"
@@ -2590,7 +2623,7 @@ const Admin = () => {
                       <Input
                         value={app.url}
                         onChange={(e) => handleEditDeliveryAppUrlChange(app.name, e.target.value)}
-                        placeholder="رابط التطبيق (اختياري)"
+                        placeholder="رابط التطبيق *"
                         dir="ltr"
                         className="text-left flex-1"
                       />

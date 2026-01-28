@@ -11,7 +11,7 @@ import logo from "@/assets/logo.png";
 const ResetPassword = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -38,7 +38,7 @@ const ResetPassword = () => {
 
         // Check current session
         const { data: { session }, error } = await supabase.auth.getSession();
-        
+
         if (error) {
           setSessionError("حدث خطأ في التحقق من الجلسة");
         } else if (!session) {
@@ -46,9 +46,9 @@ const ResetPassword = () => {
         } else {
           setSessionError(null);
         }
-        
+
         setIsCheckingSession(false);
-        
+
         return () => subscription.unsubscribe();
       } catch (error) {
         setSessionError("حدث خطأ غير متوقع");
@@ -129,7 +129,7 @@ const ResetPassword = () => {
     } catch (error: any) {
       toast({
         title: "خطأ",
-        description: error.message === "Auth session missing!" 
+        description: error.message === "Auth session missing!"
           ? "انتهت صلاحية الجلسة. يرجى طلب رابط جديد لإعادة تعيين كلمة المرور."
           : error.message,
         variant: "destructive"
@@ -204,18 +204,18 @@ const ResetPassword = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6" dir="rtl">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-sm"
+        className="w-full max-w-sm bg-card p-6 rounded-3xl shadow-card border border-border/50"
       >
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <motion.img
             src={logo}
             alt="شنو ناكل"
-            className="w-24 h-24 mx-auto mb-4 rounded-2xl"
+            className="w-20 h-20 mx-auto mb-4 rounded-2xl shadow-sm"
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2 }}
@@ -239,7 +239,7 @@ const ResetPassword = () => {
                 placeholder="كلمة المرور الجديدة"
                 value={password}
                 onChange={handlePasswordChange}
-                className="h-12 text-base pr-12"
+                className="h-12 text-base pr-4 pl-12"
                 required
               />
               <button
@@ -253,9 +253,6 @@ const ResetPassword = () => {
             {passwordError && (
               <p className="text-destructive text-sm mt-1">{passwordError}</p>
             )}
-            <p className="text-muted-foreground text-xs mt-1">
-              8 أحرف على الأقل، حرف كبير، رقم، ورمز
-            </p>
           </div>
 
           <div className="relative">
@@ -264,7 +261,7 @@ const ResetPassword = () => {
               placeholder="تأكيد كلمة المرور"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="h-12 text-base pr-12"
+              className="h-12 text-base pr-4 pl-12"
               required
             />
             <button
@@ -276,12 +273,19 @@ const ResetPassword = () => {
             </button>
           </div>
 
+          <ul className="text-xs text-muted-foreground space-y-1 pr-2 list-disc list-inside">
+            <li className={validatePassword(password) ? "text-green-500" : ""}>8 أحرف على الأقل</li>
+            <li className={/[A-Z]/.test(password) ? "text-green-500" : ""}>حرف كبير (A-Z)</li>
+            <li className={/[0-9]/.test(password) ? "text-green-500" : ""}>رقم (0-9)</li>
+            <li className={/[!@#$%^&*(),.?":{}|<>]/.test(password) ? "text-green-500" : ""}>رمز (!@#$)</li>
+          </ul>
+
           <Button
             type="submit"
-            className="w-full h-12 text-base"
+            className="w-full h-12 text-base font-bold shadow-button hover:shadow-button-hover transition-all"
             disabled={isLoading}
           >
-            {isLoading ? "جاري الحفظ..." : "حفظ كلمة المرور"}
+            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "حفظ كلمة المرور"}
           </Button>
 
           <Button

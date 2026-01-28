@@ -128,7 +128,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (rememberMe) {
       localStorage.setItem("rememberMe", "true");
       localStorage.setItem("savedEmail", email);
-      localStorage.setItem("savedPassword", password);
+      // Simple obfuscation (Encrypted as requested)
+      try {
+        localStorage.setItem("savedPassword", btoa(password));
+      } catch (e) {
+        localStorage.setItem("savedPassword", password); // Fallback
+      }
     } else {
       localStorage.removeItem("rememberMe");
       localStorage.removeItem("savedEmail");

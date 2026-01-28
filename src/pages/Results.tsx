@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { isValidBranch } from "@/lib/locationUtils";
 import { useGeolocation, calculateDistance } from "@/hooks/useGeolocation";
 import { getDeliveryAppColor } from "@/lib/deliveryApps";
 
@@ -407,45 +408,59 @@ const Results = () => {
       const avgRating = ratings.length > 0 ? Number((ratings.reduce((sum, rating) => sum + rating.rating, 0) / ratings.length).toFixed(1)) : 0;
       const ratingCount = ratings.length;
 
-      // Get all branches with valid manual Google Maps URLs
-      const branchesWithManualLocation = (r.branches || []).filter(b =>
-        isValidMapsUrl(b.google_maps_url)
-      );
+      // STRICT LOGIC: Only consider branches with valid URL AND Coordinates
+      const branchesWithManualLocation = (r.branches || []).filter(isValidBranch);
 
       // Check if restaurant has any manual location
       const hasManualLocation = branchesWithManualLocation.length > 0;
 
       // MULTI-BRANCH LOGIC: Find the nearest branch if user location is available
+      // Default to the first valid branch if no user location
       let nearestBranch = branchesWithManualLocation[0] || null;
       let distanceNum: number | null = null;
       let distanceText = "";
 
       if (hasManualLocation && userLat != null && userLon != null) {
-        // Calculate distance to all branches and find the nearest one
+        // Calculate distance to all VALID branches and find the nearest one
         let minDistance = Infinity;
 
         for (const branch of branchesWithManualLocation) {
-          if (branch.latitude != null && branch.longitude != null) {
-            const dist = calculateDistance(userLat, userLon, branch.latitude, branch.longitude);
-            if (dist < minDistance) {
-              minDistance = dist;
-              nearestBranch = branch;
-              distanceNum = dist;
-            }
+          // strict check is already done by isValidBranch, but safely cast to number to prevent NaN
+          const bLat = Number(branch.latitude);
+          const bLon = Number(branch.longitude);
+
+          const dist = calculateDistance(userLat, userLon, bLat, bLon);
+          if (dist < minDistance) {
+            minDistance = dist;
+            nearestBranch = branch;
+            distanceNum = dist;
           }
         }
 
-        // Format distance text only if we found a valid distance
+        // Format distance text with strict rules
         if (distanceNum !== null) {
-          distanceText = `${distanceNum.toFixed(1)} ${t("كم", "km")}`;
+          if (distanceNum < 1) {
+            // Less than 1km -> show meters rounded (e.g. "350 m")
+            const meters = Math.round(distanceNum * 1000);
+            distanceText = `${meters} ${t("م", "m")}`;
+          } else {
+            // 1km or more -> show km with 1 decimal (e.g. "3.5 km")
+            distanceText = `${distanceNum.toFixed(1)} ${t("كم", "km")}`;
+          }
         }
       }
       // NOTE: If location permission denied, distanceText stays empty (no display)
 
-      // Use nearest branch's data for display
-      const address = nearestBranch?.address || "";
-      const mapsUrl = nearestBranch?.google_maps_url || null;
-      const branchLat = nearestBranch?.latitude || null;
+      // Fallback for Icon: If no "valid" branch (with coords) found, check if ANY branch has a URL
+      // This satisfies Rule #3: Icon appears if mapsUrl exists, even if no distance
+      const anyBranchWithUrl = (r.branches || []).find((b: any) => b.google_maps_url && b.google_maps_url.trim().length > 0);
+
+      // Use nearest branch's data for display if valid, otherwise fallback to any URL-having branch
+      const displayBranch = nearestBranch || anyBranchWithUrl || null;
+
+      const address = displayBranch?.address || "";
+      const mapsUrl = displayBranch?.google_maps_url || null;
+      const branchLat = nearestBranch?.latitude || null; // Only verified data for these
       const branchLon = nearestBranch?.longitude || null;
 
       return {
@@ -630,7 +645,18 @@ const Results = () => {
     const cuisine = cuisines.find(c => c.name === category);
     return language === "en" && cuisine?.name_en ? cuisine.name_en : category;
   }, [category, cuisines, language]);
-  // Request location when switching to map view or enabling nearby filter
+  // Request location on mount to ensure distance is shown if allowed
+  useEffect(() => {
+    if (!userLat && !userLon && !isLoadingLocation) {
+      // Small delay to ensure component is fully mounted
+      const timer = setTimeout(() => {
+        requestLocation();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [userLat, userLon, isLoadingLocation, requestLocation]);
+
+  // Re-request when switching to map view or enabling nearby filter
   useEffect(() => {
     if ((filterNearby || viewMode === "map") && !userLat && !userLon && !isLoadingLocation) {
       requestLocation();
@@ -854,6 +880,12 @@ const Results = () => {
                 <div className="absolute bottom-3 left-3 inline-flex items-center justify-center gap-1 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-soft">
                   <Star className="w-4 h-4 fill-accent text-accent" />
                   <span className="text-sm font-bold leading-none pt-0.5 font-mono">{featuredRestaurant.rating.toFixed(1)}</span>
+                  {featuredRestaurant.distance && (
+                    <>
+                      <span className="text-muted-foreground/50 mx-1">•</span>
+                      <span className="text-xs font-medium text-muted-foreground" dir="ltr">{featuredRestaurant.distance}</span>
+                    </>
+                  )}
                 </div>
               </div>
 

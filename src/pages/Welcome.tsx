@@ -40,7 +40,14 @@ const Welcome = () => {
 
     if (savedRememberMe === 'true' && savedEmail) {
       setEmail(savedEmail);
-      if (savedPassword) setPassword(savedPassword);
+      if (savedPassword) {
+        // Decode obfuscated password
+        try {
+          setPassword(atob(savedPassword));
+        } catch (e) {
+          setPassword(savedPassword); // Fallback for legacy plain text
+        }
+      }
       setRememberMe(true);
     }
   }, []);

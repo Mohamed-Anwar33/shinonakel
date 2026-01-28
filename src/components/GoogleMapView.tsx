@@ -1,6 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { APIProvider, Map as GoogleMap, AdvancedMarker } from "@vis.gl/react-google-maps";
 import { MapPin, Star } from "lucide-react";
+import { isValidBranch } from "@/lib/locationUtils";
+import { MapController } from "./MapController";
 
 interface Branch {
   id: string;
@@ -28,52 +31,46 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
   // Default center (Kuwait City)
   const defaultCenter = { lat: 29.3759, lng: 47.9774 };
 
-  // STRICT: Build branches ONLY from admin-entered data (NO auto-geocoding)
+  // STRICT: Build branches ONLY from admin-entered data using shared validation
   useEffect(() => {
     const manualBranches: Branch[] = [];
 
     for (const restaurant of restaurants) {
       const branches = restaurant.branches || [];
 
-      // Check each branch explicitly
-      if (branches && branches.length > 0) {
-        branches.forEach((branch: any, index: number) => {
-          const hasManualMapsUrl = branch.google_maps_url && (
-            branch.google_maps_url.includes("google.com/maps") ||
-            branch.google_maps_url.includes("maps.app.goo.gl") ||
-            branch.google_maps_url.includes("maps.google.com") ||
-            branch.google_maps_url.includes("goo.gl/maps")
-          );
+      // Logic must MATCH Results.tsx identically
+      if (branches.length > 0) {
+        // Filter using shared helper
+        const validBranches = branches.filter(isValidBranch);
 
-          if (hasManualMapsUrl && branch.latitude != null && branch.longitude != null) {
-            manualBranches.push({
-              id: `${restaurant.id}-branch-${index}`, // Unique ID per branch
-              lat: branch.latitude,
-              lng: branch.longitude,
-              restaurantId: restaurant.id,
-              restaurantName: restaurant.name,
-              restaurantImage: restaurant.image || restaurant.image_url,
-              cuisine: restaurant.cuisine,
-              rating: restaurant.rating || null,
-              mapsUrl: branch.google_maps_url,
-              address: branch.address || restaurant.address || "",
-            });
-          }
+        validBranches.forEach((branch: any, index: number) => {
+          manualBranches.push({
+            id: `${restaurant.id}-branch-${index}`,
+            lat: Number(branch.latitude),
+            lng: Number(branch.longitude),
+            restaurantId: restaurant.id,
+            restaurantName: restaurant.name,
+            restaurantImage: restaurant.image || restaurant.image_url,
+            cuisine: restaurant.cuisine,
+            rating: restaurant.rating || null,
+            mapsUrl: branch.google_maps_url,
+            address: branch.address || restaurant.address || "",
+          });
         });
-      } else {
-        // Fallback for restaurants with legacy single-location data (if strictly valid)
-        const hasManualMapsUrl = restaurant.mapsUrl && (
-          restaurant.mapsUrl.includes("google.com/maps") ||
-          restaurant.mapsUrl.includes("maps.app.goo.gl") ||
-          restaurant.mapsUrl.includes("maps.google.com") ||
-          restaurant.mapsUrl.includes("goo.gl/maps")
-        );
 
-        if (hasManualMapsUrl && restaurant.latitude != null && restaurant.longitude != null) {
+      } else {
+        // Legacy fallback check - map to branch-like object to validate
+        const legacyCandidate = {
+          google_maps_url: restaurant.mapsUrl,
+          latitude: restaurant.latitude,
+          longitude: restaurant.longitude
+        };
+
+        if (isValidBranch(legacyCandidate as any)) {
           manualBranches.push({
             id: `${restaurant.id}-manual`,
-            lat: restaurant.latitude,
-            lng: restaurant.longitude,
+            lat: Number(restaurant.latitude),
+            lng: Number(restaurant.longitude),
             restaurantId: restaurant.id,
             restaurantName: restaurant.name,
             restaurantImage: restaurant.image || restaurant.image_url,
@@ -106,13 +103,16 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
     <APIProvider apiKey={apiKey}>
       <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-elevated bg-card">
         <GoogleMap
-          defaultCenter={userLocation || defaultCenter}
-          defaultZoom={13}
+          defaultCenter={defaultCenter}
+          defaultZoom={11}
           gestureHandling={'greedy'}
           disableDefaultUI={false}
           mapId="DEMO_MAP_ID"
           className="w-full h-full"
         >
+          {/* Controller to auto-fit bounds */}
+          <MapController branches={branches} />
+
           {/* User Location Marker */}
           {userLocation && (
             <AdvancedMarker position={userLocation}>
@@ -123,7 +123,7 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
             </AdvancedMarker>
           )}
 
-          {/* Restaurant Branch Markers - ONLY manually-added locations */}
+          {/* Restaurant Branch Markers */}
           {branches.map((branch) => (
             <AdvancedMarker
               key={branch.id}
