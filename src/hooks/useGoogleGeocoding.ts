@@ -74,59 +74,42 @@ export function useGoogleGeocoding() {
       const data = await response.json();
 
       if (data.status === "OK" && data.results && data.results.length > 0) {
-        // STRICT MATCHING: Find result that EXACTLY matches the restaurant name
         const searchLower = searchName.toLowerCase().trim();
-        const searchWords = searchLower.split(/\s+/).filter((w: string) => w.length > 2);
         
+        // Find the best result - prioritize those with restaurant/food types
         const bestResult = data.results.find((result: any) => {
-          const formattedAddress = result.formatted_address?.toLowerCase() || '';
           const types = result.types || [];
           
-          // Must be a physical food establishment
+          // CRITICAL: If it has "restaurant" or "food" type, it's a real restaurant
+          // Trust Google's classification
           const isFoodEstablishment = types.some((t: string) => 
             PHYSICAL_LOCATION_TYPES.includes(t)
           );
           
-          if (!isFoodEstablishment) return false;
-          
-          // Check if the result contains significant words from restaurant name
-          const matchCount = searchWords.filter((word: string) => 
-            formattedAddress.includes(word)
-          ).length;
-          
-          // Require at least 50% word match for exact matching
-          return matchCount >= Math.ceil(searchWords.length * 0.5);
-        });
-
-        if (!bestResult) {
-          console.log(`STRICT MATCH FAILED for: ${searchName} - No exact match found`);
-          cacheRef.current.set(cacheKey, null);
-          return null;
-        }
+          return isFoodEstablishment;
+        }) || data.results[0];
 
         const location = bestResult.geometry.location;
         const types = bestResult.types || [];
         
-        // Double-check: Reject if it has excluded types without being a food place
-        const hasExcludedType = types.some((t: string) => 
-          EXCLUDED_TYPES.includes(t)
-        );
+        // Must be a food establishment - this is the key check
         const hasFoodType = types.some((t: string) => 
           PHYSICAL_LOCATION_TYPES.includes(t)
         );
         
-        if (hasExcludedType && !hasFoodType) {
-          console.log(`Excluding ${searchName}: has excluded type without food type`);
+        // Reject if it's NOT a food establishment at all
+        if (!hasFoodType) {
+          console.log(`REJECTED ${searchName}: Not a food establishment (types: ${types.join(', ')})`);
           cacheRef.current.set(cacheKey, null);
           return null;
         }
-
+        
         // Check if the location is within Kuwait bounds
         const isInKuwait = location.lat >= 28.5 && location.lat <= 30.1 &&
                           location.lng >= 46.5 && location.lng <= 48.5;
 
         if (!isInKuwait) {
-          console.log(`Excluding ${searchName}: not in Kuwait`);
+          console.log(`REJECTED ${searchName}: not in Kuwait`);
           cacheRef.current.set(cacheKey, null);
           return null;
         }
@@ -144,7 +127,7 @@ export function useGoogleGeocoding() {
           mapsUrl: generatedMapsUrl,
         };
 
-        console.log(`✓ STRICT MATCH SUCCESS for: ${searchName}`);
+        console.log(`✓ FOUND ${searchName} as restaurant at: ${bestResult.formatted_address}`);
         cacheRef.current.set(cacheKey, geocodingResult);
         return geocodingResult;
       }
