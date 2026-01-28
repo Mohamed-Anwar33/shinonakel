@@ -20,44 +20,92 @@ import { getDeliveryAppColor } from "@/lib/deliveryApps";
 const geocodeCache = new Map<string, {
   lat: number;
   lon: number;
+  mapsUrl: string;
+  verified: boolean;
 } | null>();
 
-// Geocode a restaurant name using OpenStreetMap Nominatim
-const geocodeRestaurant = async (name: string, nameEn?: string | null): Promise<{
+// Physical restaurant indicators - ONLY these types are allowed
+const PHYSICAL_LOCATION_TYPES = [
+  "restaurant",
+  "food",
+  "cafe",
+  "bakery",
+  "bar",
+  "meal_takeaway",
+];
+
+// Geocode a restaurant name using Google Geocoding API (for verified locations)
+const geocodeRestaurant = async (nameEn: string | null): Promise<{
   lat: number;
   lon: number;
+  mapsUrl: string;
+  verified: boolean;
 } | null> => {
-  const cacheKey = name;
+  if (!nameEn) return null;
+  
+  const cacheKey = nameEn.toLowerCase().trim();
   if (geocodeCache.has(cacheKey)) {
     return geocodeCache.get(cacheKey) || null;
   }
+  
   try {
-    // Try English name first (usually more accurate for geocoding)
-    const searchName = nameEn || name;
-    const query = encodeURIComponent(`${searchName}, Kuwait`);
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1&countrycodes=kw`, {
-      headers: {
-        "Accept-Language": "ar,en",
-        "User-Agent": "ShiNoNakel-App/1.0"
-      }
-    });
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      geocodeCache.set(cacheKey, null);
+      return null;
+    }
+    
+    const query = encodeURIComponent(`"${nameEn}" restaurant Kuwait`);
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${query}&key=${apiKey}&language=en&region=kw`
+    );
+    
     if (!response.ok) {
       geocodeCache.set(cacheKey, null);
       return null;
     }
+    
     const data = await response.json();
-    if (data && data.length > 0) {
+    
+    if (data.status === "OK" && data.results && data.results.length > 0) {
+      // Find food establishment result (verified physical location)
+      const foodResult = data.results.find((result: any) => {
+        const types = result.types || [];
+        return types.some((t: string) => PHYSICAL_LOCATION_TYPES.includes(t));
+      });
+      
+      if (!foodResult) {
+        console.log(`❌ REJECTED ${nameEn}: Not a food establishment`);
+        geocodeCache.set(cacheKey, null);
+        return null;
+      }
+      
+      const location = foodResult.geometry.location;
+      
+      // Check Kuwait bounds
+      if (location.lat < 28.5 || location.lat > 30.1 || 
+          location.lng < 46.5 || location.lng > 48.5) {
+        console.log(`❌ REJECTED ${nameEn}: Outside Kuwait`);
+        geocodeCache.set(cacheKey, null);
+        return null;
+      }
+      
       const result = {
-        lat: parseFloat(data[0].lat),
-        lon: parseFloat(data[0].lon)
+        lat: location.lat,
+        lon: location.lng,
+        mapsUrl: `https://www.google.com/maps/place/?q=place_id:${foodResult.place_id}`,
+        verified: true
       };
+      
+      console.log(`✓ FOUND ${nameEn} as restaurant`);
       geocodeCache.set(cacheKey, result);
       return result;
     }
+    
     geocodeCache.set(cacheKey, null);
     return null;
   } catch (err) {
-    console.error("Geocoding error for", name, err);
+    console.error("Geocoding error for", nameEn, err);
     geocodeCache.set(cacheKey, null);
     return null;
   }
@@ -135,6 +183,8 @@ const Results = () => {
   const [geocodedCoords, setGeocodedCoords] = useState<Map<string, {
     lat: number;
     lon: number;
+    mapsUrl: string;
+    verified: boolean;
   }>>(new Map());
   const [pinnedAdRestaurantId, setPinnedAdRestaurantId] = useState<string | null>(null);
   const [pinnedAdId, setPinnedAdId] = useState<string | null>(null);
@@ -327,12 +377,13 @@ const Results = () => {
       const newCoords = new Map(geocodedCoords);
       for (const restaurant of restaurantsNeedingGeocode.slice(0, 5)) {
         // Limit to 5 at a time
-        const result = await geocodeRestaurant(restaurant.name, restaurant.name_en);
+        // Use English name for better geocoding with Google API
+        const result = await geocodeRestaurant(restaurant.name_en);
         if (result) {
           newCoords.set(restaurant.id, result);
         }
-        // Respect Nominatim rate limit: 1 request per second
-        await new Promise(resolve => setTimeout(resolve, 1100));
+        // Google API rate limit: 150ms between requests
+        await new Promise(resolve => setTimeout(resolve, 150));
       }
       setGeocodedCoords(newCoords);
       geocodingInProgress.current = false;
@@ -346,28 +397,38 @@ const Results = () => {
       const ratingCount = ratings.length;
       const primaryBranch = r.branches?.find(b => b.google_maps_url) ?? r.branches?.find(b => b.latitude != null && b.longitude != null) ?? r.branches?.[0];
       const address = primaryBranch?.address || "";
-      const mapsUrl = primaryBranch?.google_maps_url || null;
+      const manualMapsUrl = primaryBranch?.google_maps_url || null;
+
+      // SMART LOCATION LOGIC:
+      // Check for verified location from auto-search (Google API)
+      const geocoded = geocodedCoords.get(r.id);
+      const hasVerifiedAutoLocation = geocoded?.verified === true;
+      const hasManualLocation = manualMapsUrl && manualMapsUrl.includes("google.com/maps");
+      
+      // Has verified location if either manual or auto-verified
+      const hasVerifiedLocation = hasManualLocation || hasVerifiedAutoLocation;
+      
+      // Determine which mapsUrl to use
+      const mapsUrl = manualMapsUrl || (hasVerifiedAutoLocation ? geocoded?.mapsUrl : null) || null;
 
       // Use database coords if available, otherwise use geocoded coords
       let branchLat = primaryBranch?.latitude;
       let branchLon = primaryBranch?.longitude;
       if (branchLat == null || branchLon == null) {
-        const geocoded = geocodedCoords.get(r.id);
         if (geocoded) {
           branchLat = geocoded.lat;
           branchLon = geocoded.lon;
         }
       }
+      
+      // Only show distance if location is verified
       let distanceNum: number | null = null;
       let distanceText = "";
-      if (userLat != null && userLon != null && branchLat != null && branchLon != null) {
+      if (hasVerifiedLocation && userLat != null && userLon != null && branchLat != null && branchLon != null) {
         distanceNum = calculateDistance(userLat, userLon, branchLat, branchLon);
         distanceText = `${distanceNum.toFixed(1)} ${t("كم", "km")}`;
-      } else if (branchLat != null && branchLon != null) {
-        distanceText = "📍";
-      } else {
-        distanceText = "";
       }
+      
       return {
         id: r.id,
         name: r.name,
@@ -399,7 +460,8 @@ const Results = () => {
         website: r.website,
         branches: r.branches,
         address,
-        mapsUrl
+        mapsUrl,
+        hasVerifiedLocation // NEW: Pass verification status
       };
     });
   }, [restaurants, savedRestaurantIds, userLat, userLon, t, geocodedCoords, pinnedAdRestaurantId, pinnedAdId]);
@@ -630,14 +692,18 @@ const Results = () => {
   };
   
   const handleMapClick = (restaurant: any) => {
+    // SMART LOCATION: Only navigate if location is verified
+    if (!restaurant.hasVerifiedLocation) {
+      return; // Don't open map for non-verified locations
+    }
+    
     let url = '';
     if (restaurant.mapsUrl) {
       url = restaurant.mapsUrl;
     } else if (restaurant.latitude && restaurant.longitude) {
       url = `https://www.google.com/maps/search/?api=1&query=${restaurant.latitude},${restaurant.longitude}`;
     } else {
-      const searchQuery = encodeURIComponent(restaurant.name);
-      url = `https://www.google.com/maps/search/${searchQuery}`;
+      return; // No valid location
     }
     handleRestaurantInteraction(restaurant, 'location', url);
   };
@@ -785,9 +851,12 @@ const Results = () => {
 
                         {/* Left Side - Phone & Location Icons */}
                         <div className="flex items-center gap-2">
-                          <button onClick={() => handleMapClick(featuredRestaurant)} className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
-                            <MapPin className="w-5 h-5 text-primary" />
-                          </button>
+                          {/* Location - ONLY show if verified */}
+                          {featuredRestaurant.hasVerifiedLocation && (
+                            <button onClick={() => handleMapClick(featuredRestaurant)} className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
+                              <MapPin className="w-5 h-5 text-primary" />
+                            </button>
+                          )}
                           {featuredRestaurant.phone && <a href={`tel:${featuredRestaurant.phone}`} className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
                               <Phone className="w-5 h-5 text-primary" />
                             </a>}
@@ -838,7 +907,7 @@ const Results = () => {
               }} transition={{
                 delay: index * 0.05
               }}>
-                          <CompactRestaurantCard name={language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name} cuisine={`${getCuisineDisplay(restaurant.cuisine).emoji} ${getCuisineDisplay(restaurant.cuisine).name}`} image={restaurant.image} rating={restaurant.rating} distance={restaurant.distance} deliveryApps={restaurant.deliveryApps} isFavorite={savedRestaurantIds.includes(restaurant.name)} onFavoriteClick={() => toggleFavorite(restaurant)} onMapClick={() => handleMapClick(restaurant)} onClick={() => handleRestaurantClick(restaurant)} onDeliveryAppClick={(app) => handleDeliveryAppClick(restaurant, app)} isSponsored={restaurant.isSponsored} locationAvailable={!locationPermissionDenied && (userLat !== null && userLon !== null)} />
+                          <CompactRestaurantCard name={language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name} cuisine={`${getCuisineDisplay(restaurant.cuisine).emoji} ${getCuisineDisplay(restaurant.cuisine).name}`} image={restaurant.image} rating={restaurant.rating} distance={restaurant.distance} deliveryApps={restaurant.deliveryApps} isFavorite={savedRestaurantIds.includes(restaurant.name)} onFavoriteClick={() => toggleFavorite(restaurant)} onMapClick={() => handleMapClick(restaurant)} onClick={() => handleRestaurantClick(restaurant)} onDeliveryAppClick={(app) => handleDeliveryAppClick(restaurant, app)} isSponsored={restaurant.isSponsored} locationAvailable={!locationPermissionDenied && (userLat !== null && userLon !== null)} hasVerifiedLocation={restaurant.hasVerifiedLocation} mapUrl={restaurant.mapsUrl} />
                         </motion.div>)}
                     </div>
                     
