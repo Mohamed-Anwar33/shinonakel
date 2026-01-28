@@ -991,6 +991,17 @@ const Admin = () => {
     const updated = [...editBranches];
     updated[index] = { ...updated[index], [field]: value };
     setEditBranches(updated);
+
+    // Auto-extract coordinates when a valid Google Maps URL is entered (Edit Mode)
+    if (field === 'mapsUrl' && value && isValidGoogleMapsUrl(value)) {
+      // Debounce: wait 500ms after user stops typing
+      const timeoutId = setTimeout(() => {
+        extractCoordinatesFromUrl(value, index, true); // Pass true for isEditMode
+      }, 800);
+
+      // Store timeout ID to clear it if user types again
+      return () => clearTimeout(timeoutId);
+    }
   };
 
   const handleUpdateRestaurant = async () => {

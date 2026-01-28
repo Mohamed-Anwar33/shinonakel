@@ -1,3 +1,4 @@
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -8,7 +9,15 @@ const corsHeaders = {
 // Extract coordinates from various Google Maps URL formats
 function extractCoordsFromUrl(url: string): { lat: number; lng: number } | null {
   try {
-    // Pattern 1: @lat,lng in URL (most common)
+    // Pattern 1: !3d and !4d in URL (data parameter) - MOST ACCURATE for Place URLs
+    // Example: ...!3d29.3759!4d47.9774...
+    const dataPattern = /!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/;
+    const dataMatch = url.match(dataPattern);
+    if (dataMatch) {
+      return { lat: parseFloat(dataMatch[1]), lng: parseFloat(dataMatch[2]) };
+    }
+
+    // Pattern 2: @lat,lng in URL (viewport center, less accurate for Place URLs)
     // Example: https://www.google.com/maps/place/.../@29.3759,47.9774,17z/...
     const atPattern = /@(-?\d+\.?\d*),(-?\d+\.?\d*)/;
     const atMatch = url.match(atPattern);
@@ -16,20 +25,12 @@ function extractCoordsFromUrl(url: string): { lat: number; lng: number } | null 
       return { lat: parseFloat(atMatch[1]), lng: parseFloat(atMatch[2]) };
     }
 
-    // Pattern 2: ll= or q= parameter
+    // Pattern 3: ll= or q= parameter
     // Example: https://maps.google.com/?ll=29.3759,47.9774
     const llPattern = /[?&](?:ll|q)=(-?\d+\.?\d*),(-?\d+\.?\d*)/;
     const llMatch = url.match(llPattern);
     if (llMatch) {
       return { lat: parseFloat(llMatch[1]), lng: parseFloat(llMatch[2]) };
-    }
-
-    // Pattern 3: !3d and !4d in URL (data parameter)
-    // Example: ...!3d29.3759!4d47.9774...
-    const dataPattern = /!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/;
-    const dataMatch = url.match(dataPattern);
-    if (dataMatch) {
-      return { lat: parseFloat(dataMatch[1]), lng: parseFloat(dataMatch[2]) };
     }
 
     // Pattern 4: place/ followed by coordinates
@@ -51,7 +52,7 @@ function isValidCoordinate(lat: number, lng: number): boolean {
   return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -101,11 +102,11 @@ serve(async (req) => {
     if (coords && isValidCoordinate(coords.lat, coords.lng)) {
       console.log('Extracted coordinates:', coords);
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          latitude: coords.lat, 
+        JSON.stringify({
+          success: true,
+          latitude: coords.lat,
           longitude: coords.lng,
-          resolvedUrl: finalUrl 
+          resolvedUrl: finalUrl
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -113,10 +114,10 @@ serve(async (req) => {
 
     // If extraction failed, return error
     return new Response(
-      JSON.stringify({ 
-        success: false, 
+      JSON.stringify({
+        success: false,
         error: 'Could not extract coordinates from URL',
-        resolvedUrl: finalUrl 
+        resolvedUrl: finalUrl
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
