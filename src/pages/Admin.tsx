@@ -125,7 +125,7 @@ const Admin = () => {
   const [restaurantImageUrlInput, setRestaurantImageUrlInput] = useState(""); // For manual URL entry
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [branches, setBranches] = useState<{ mapsUrl: string; latitude: string; longitude: string }[]>([
+  const [branches, setBranches] = useState<{ mapsUrl: string; latitude: string; longitude: string; isExtracting?: boolean; extractionError?: string }[]>([
     { mapsUrl: "", latitude: "", longitude: "" },
   ]);
   const [selectedDeliveryApps, setSelectedDeliveryApps] = useState<{ name: string; url: string }[]>([]);
@@ -367,10 +367,80 @@ const Admin = () => {
     );
   };
 
+  // Extract coordinates from Google Maps URL via Edge Function
+  const extractCoordinatesFromUrl = async (mapsUrl: string, index: number) => {
+    if (!mapsUrl || !isValidGoogleMapsUrl(mapsUrl)) return;
+    
+    // Set extracting state
+    setBranches(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], isExtracting: true, extractionError: undefined };
+      return updated;
+    });
+
+    try {
+      const { data, error } = await supabase.functions.invoke('extract-coordinates', {
+        body: { mapsUrl }
+      });
+
+      if (error) throw error;
+
+      if (data.success && data.latitude && data.longitude) {
+        setBranches(prev => {
+          const updated = [...prev];
+          updated[index] = { 
+            ...updated[index], 
+            latitude: data.latitude.toString(), 
+            longitude: data.longitude.toString(),
+            isExtracting: false,
+            extractionError: undefined
+          };
+          return updated;
+        });
+        toast({
+          title: "تم استخراج الإحداثيات",
+          description: `Lat: ${data.latitude.toFixed(6)}, Lng: ${data.longitude.toFixed(6)}`,
+        });
+      } else {
+        setBranches(prev => {
+          const updated = [...prev];
+          updated[index] = { 
+            ...updated[index], 
+            isExtracting: false,
+            extractionError: "لم يتم العثور على إحداثيات في الرابط"
+          };
+          return updated;
+        });
+      }
+    } catch (error: any) {
+      console.error('Error extracting coordinates:', error);
+      setBranches(prev => {
+        const updated = [...prev];
+        updated[index] = { 
+          ...updated[index], 
+          isExtracting: false,
+          extractionError: "حدث خطأ أثناء استخراج الإحداثيات"
+        };
+        return updated;
+      });
+    }
+  };
+
   const handleBranchChange = (index: number, field: string, value: string) => {
     const updated = [...branches];
     updated[index] = { ...updated[index], [field]: value };
     setBranches(updated);
+
+    // Auto-extract coordinates when a valid Google Maps URL is entered
+    if (field === 'mapsUrl' && value && isValidGoogleMapsUrl(value)) {
+      // Debounce: wait 500ms after user stops typing
+      const timeoutId = setTimeout(() => {
+        extractCoordinatesFromUrl(value, index);
+      }, 800);
+      
+      // Store timeout ID to clear it if user types again
+      return () => clearTimeout(timeoutId);
+    }
   };
 
   const openGoogleMapsSearch = (address: string) => {
@@ -435,14 +505,14 @@ const Admin = () => {
 
       if (restaurantError) throw restaurantError;
 
-      // Insert branches
+      // Insert branches with extracted coordinates
       const validBranches = branches.filter((b) => b.mapsUrl || b.latitude || b.longitude);
       if (validBranches.length > 0) {
         const branchesData = validBranches.map((b) => ({
           restaurant_id: restaurant.id,
           google_maps_url: b.mapsUrl || null,
-          latitude: null, // Removed latitude input
-          longitude: null, // Removed longitude input
+          latitude: b.latitude ? parseFloat(b.latitude) : null,
+          longitude: b.longitude ? parseFloat(b.longitude) : null,
         }));
 
         const { error: branchError } = await supabase.from("restaurant_branches").insert(branchesData);
@@ -1517,9 +1587,28 @@ const Admin = () => {
                               ⚠️ الرابط غير صحيح - يجب أن يكون رابط Google Maps
                             </p>
                           )}
+                          {/* Extraction Status */}
+                          {branch.isExtracting && (
+                            <div className="flex items-center gap-2 text-xs text-primary text-right" dir="rtl">
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
+                              <span>جاري استخراج الإحداثيات...</span>
+                            </div>
+                          )}
+                          {branch.extractionError && (
+                            <p className="text-xs text-amber-600 text-right" dir="rtl">
+                              ⚠️ {branch.extractionError}
+                            </p>
+                          )}
+                          {/* Show extracted coordinates */}
+                          {branch.latitude && branch.longitude && !branch.isExtracting && (
+                            <div className="flex items-center gap-2 text-xs text-green-600 text-right bg-green-50 p-2 rounded" dir="rtl">
+                              <CheckCircle className="w-3 h-3" />
+                              <span>✅ تم استخراج الإحداثيات: {parseFloat(branch.latitude).toFixed(6)}, {parseFloat(branch.longitude).toFixed(6)}</span>
+                            </div>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground text-right" dir="rtl">
-                          💡 أدخل رابط Google Maps للموقع
+                          💡 أدخل رابط Google Maps وسيتم استخراج الإحداثيات تلقائياً
                         </p>
                       </div>
                     ))}
