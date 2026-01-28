@@ -634,7 +634,7 @@ const Results = () => {
                         {/* Ad Badge - Inside Image - Hide when using nearby filter */}
                         {!filterNearby && <div className="absolute top-3 right-3">
                             <span className="inline-flex items-center justify-center bg-accent text-accent-foreground font-bold rounded-full shadow-soft py-[3px] px-[13px] text-center font-sans text-base">
-                              {t("إعلان مدفوع", "Sponsored")}
+                              {t("إعلان", "Ad")}
                             </span>
                           </div>}
 
