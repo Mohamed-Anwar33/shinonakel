@@ -1649,7 +1649,7 @@ const Admin = () => {
                               {restaurant.name_en && (
                                 <span className="text-sm text-muted-foreground">({restaurant.name_en})</span>
                               )}
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-xs text-muted-foreground" dir="rtl">
                                 👆 نقرة {restaurantInteractions[restaurant.id] || 0}
                               </span>
                             </div>
