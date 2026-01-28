@@ -143,6 +143,8 @@ const Results = () => {
   const [visibleCount, setVisibleCount] = useState(10);
   const [shuffledOrder, setShuffledOrder] = useState<string[]>([]); // Stores restaurant IDs in shuffled order
   const shuffleKey = useRef<string>(""); // Track when to re-shuffle
+  const loadMoreRef = useRef<HTMLDivElement>(null); // Ref for infinite scroll trigger
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Show location error if it occurs
   useEffect(() => {
@@ -504,13 +506,37 @@ const Results = () => {
     return filteredRestaurants.slice(0, visibleCount);
   }, [filteredRestaurants, visibleCount]);
 
-  // Load more function
+  // Load more function with loading state
   const loadMore = useCallback(() => {
-    setVisibleCount(prev => Math.min(prev + 10, filteredRestaurants.length));
-  }, [filteredRestaurants.length]);
+    if (isLoadingMore) return;
+    setIsLoadingMore(true);
+    // Simulate slight delay for smooth UX
+    setTimeout(() => {
+      setVisibleCount(prev => Math.min(prev + 10, filteredRestaurants.length));
+      setIsLoadingMore(false);
+    }, 300);
+  }, [filteredRestaurants.length, isLoadingMore]);
 
   // Remaining count
   const remainingCount = filteredRestaurants.length - visibleCount;
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && remainingCount > 0 && !isLoadingMore) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1, rootMargin: "100px" }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [remainingCount, isLoadingMore, loadMore]);
   const getCuisineDisplay = (cuisineName: string) => {
     const cuisine = cuisines.find(c => c.name === cuisineName);
     const displayName = language === "en" && cuisine?.name_en ? cuisine.name_en : cuisineName;
@@ -812,25 +838,24 @@ const Results = () => {
                         </motion.div>)}
                     </div>
                     
-                    {/* Show More Button */}
-                    {remainingCount > 0 && (
-                      <motion.div 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="flex justify-center pt-4"
-                      >
-                        <Button
-                          onClick={loadMore}
-                          variant="outline"
-                          className="gap-2 rounded-full px-6"
+                    {/* Infinite Scroll Trigger & Loading Indicator */}
+                    <div ref={loadMoreRef} className="flex justify-center py-6">
+                      {isLoadingMore && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="flex items-center gap-2 text-muted-foreground"
                         >
-                          <ChevronDown className="w-4 h-4" />
-                          <span dir="rtl">
-                            {t("عرض المزيد", "Show More")} ({remainingCount} {t("مطعم متبقي", "remaining")})
-                          </span>
-                        </Button>
-                      </motion.div>
-                    )}
+                          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                          <span className="text-sm">{t("جاري التحميل...", "Loading...")}</span>
+                        </motion.div>
+                      )}
+                      {!isLoadingMore && remainingCount > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          {remainingCount} {t("مطعم متبقي", "remaining")}
+                        </span>
+                      )}
+                    </div>
                   </div>}
               </motion.div>}
           </AnimatePresence>}
