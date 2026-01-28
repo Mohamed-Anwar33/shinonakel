@@ -101,35 +101,59 @@ const Index = () => {
       fetchSavedRestaurants();
     }
   }, [user, isGuest]);
+  // Fisher-Yates shuffle للترتيب العشوائي
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
   const fetchWeeklyPicks = async () => {
     setIsLoadingPicks(true);
     try {
+      const today = new Date().toISOString().split('T')[0];
+      
       const {
         data: ads,
         error: adsError
-      } = await supabase.from("advertisements").select("id, restaurant_id").eq("placement", "most_popular").eq("is_active", true).lte("start_date", new Date().toISOString().split('T')[0]).gte("end_date", new Date().toISOString().split('T')[0]);
+      } = await supabase
+        .from("advertisements")
+        .select("id, restaurant_id")
+        .eq("placement", "most_popular")
+        .eq("is_active", true)
+        .lte("start_date", today)
+        .gte("end_date", today);
+      
       if (adsError) throw adsError;
 
-      // If there are no active weekly-picks ads, we still show a fallback list
-      // (so guests see the section like signed-in users), but without ad tracking/badges.
-      // If no active ads, show empty section instead of fallback
+      // إخفاء القسم بالكامل عند عدم وجود إعلانات نشطة
       if (!ads || ads.length === 0) {
         setWeeklyPicks([]);
         return;
       }
+      
       const restaurantIds = ads.map(ad => ad.restaurant_id);
       const {
         data: restaurants,
         error: restError
       } = await supabase.from("restaurants").select("*").in("id", restaurantIds);
+      
       if (restError) throw restError;
+      
       const picksWithDetails = await buildWeeklyPickDetails(restaurants || [], ads);
-      setWeeklyPicks(picksWithDetails);
+      
+      // ترتيب عشوائي للإعلانات لضمان العدالة في الظهور
+      const shuffledPicks = shuffleArray(picksWithDetails);
+      setWeeklyPicks(shuffledPicks);
 
-      // Track ad views separately - don't block data fetching if tracking fails
+      // تتبع المشاهدات للإحصاء فقط - لا يؤثر على الظهور
       trackAdViews(ads);
     } catch (error) {
       console.error("Error fetching weekly picks:", error);
+      setWeeklyPicks([]);
     } finally {
       setIsLoadingPicks(false);
     }
@@ -323,20 +347,22 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Weekly Picks Section */}
-        <section className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold flex items-center gap-2">
-              <span>⭐</span>
-              <span>{t("الأكثر رواجاً", "Most Popular")}</span>
-            </h2>
-          </div>
+        {/* Weekly Picks Section - يظهر فقط عند وجود إعلانات نشطة */}
+        {(isLoadingPicks || weeklyPicks.length > 0) && (
+          <section className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <span>⭐</span>
+                <span>{t("الأكثر رواجاً", "Most Popular")}</span>
+              </h2>
+            </div>
 
-          {isLoadingPicks ? <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div> : weeklyPicks.length === 0 ? <div className="text-center py-8 text-muted-foreground">
-              <p>{t("لا يوجد", "None available")}</p>
-            </div> : <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
+            {isLoadingPicks ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
               {weeklyPicks.map(restaurant => <motion.div key={restaurant.id} initial={{
             opacity: 0,
             scale: 0.9
@@ -377,9 +403,12 @@ const Index = () => {
                       <MapPin className="w-3.5 h-3.5 mb-[4px]" />
                     </button>
                   </div>
-                </motion.div>)}
-            </div>}
-        </section>
+                </motion.div>
+              )}
+              </div>
+            )}
+          </section>
+        )}
       </main>
 
       <BottomNav />
