@@ -134,6 +134,7 @@ const Map = () => {
           branches:restaurant_branches(*),
           delivery_apps:restaurant_delivery_apps(*)
         `)
+        .eq("is_deleted", false) // Filter out soft-deleted restaurants
         .order("created_at", { ascending: false });
 
       if (restaurantsError) throw restaurantsError;
@@ -323,8 +324,8 @@ const Map = () => {
                 key={cuisine.name}
                 onClick={() => handleCategoryChange(cuisine.name, cuisine.emoji)}
                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${isActive
-                    ? "bg-primary text-primary-foreground shadow-soft"
-                    : "bg-card text-foreground border border-border hover:border-primary/50"
+                  ? "bg-primary text-primary-foreground shadow-soft"
+                  : "bg-card text-foreground border border-border hover:border-primary/50"
                   }`}
               >
                 <span>{cuisine.emoji}</span>
