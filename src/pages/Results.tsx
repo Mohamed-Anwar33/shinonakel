@@ -124,7 +124,7 @@ const Results = () => {
   const [savedRestaurantIds, setSavedRestaurantIds] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [filterNearby, setFilterNearby] = useState(false);
-  const [filterNewest, setFilterNewest] = useState(false);
+  
   const [isLoading, setIsLoading] = useState(true);
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
   const [showGuestPrompt, setShowGuestPrompt] = useState(false);
@@ -425,18 +425,13 @@ const Results = () => {
       }
       return false;
     });
-    if (filterNewest) {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      filtered = filtered.filter(r => r.createdAt >= thirtyDaysAgo);
-    }
     return filtered;
-  }, [category, filterNewest, transformedRestaurants, restaurants]);
+  }, [category, transformedRestaurants, restaurants]);
 
   // Generate shuffle key based on filters to detect when to re-shuffle
   const currentShuffleKey = useMemo(() => {
-    return `${category}-${filterNearby}-${filterNewest}`;
-  }, [category, filterNearby, filterNewest]);
+    return `${category}-${filterNearby}`;
+  }, [category, filterNearby]);
 
   // Shuffle restaurants when filters change or on initial load
   useEffect(() => {
@@ -460,31 +455,19 @@ const Results = () => {
 
   // Apply sorting based on filters and shuffled order
   const filteredRestaurants = useMemo(() => {
-    // If nearby or newest filter is active, use deterministic sorting
-    if (filterNearby || filterNewest) {
-      return categoryFilteredRestaurants.sort((a, b) => {
+    // If nearby filter is active, use deterministic sorting
+    if (filterNearby) {
+      return [...categoryFilteredRestaurants].sort((a, b) => {
         // Pinned ad always comes first
         if (a.isSponsored && !b.isSponsored) return -1;
         if (!a.isSponsored && b.isSponsored) return 1;
         
-        if (filterNearby && filterNewest) {
-          const aDistance = a.distanceNum ?? Infinity;
-          const bDistance = b.distanceNum ?? Infinity;
-          if (aDistance !== bDistance) {
-            return aDistance - bDistance;
-          }
-          return b.createdAt.getTime() - a.createdAt.getTime();
-        } else if (filterNearby) {
-          const aDistance = a.distanceNum ?? Infinity;
-          const bDistance = b.distanceNum ?? Infinity;
-          if (aDistance !== bDistance) {
-            return aDistance - bDistance;
-          }
-          return b.createdAt.getTime() - a.createdAt.getTime();
-        } else if (filterNewest) {
-          return b.createdAt.getTime() - a.createdAt.getTime();
+        const aDistance = a.distanceNum ?? Infinity;
+        const bDistance = b.distanceNum ?? Infinity;
+        if (aDistance !== bDistance) {
+          return aDistance - bDistance;
         }
-        return 0;
+        return b.createdAt.getTime() - a.createdAt.getTime();
       });
     }
     
@@ -500,7 +483,7 @@ const Results = () => {
       const orderB = orderMap.get(b.id) ?? Infinity;
       return orderA - orderB;
     });
-  }, [categoryFilteredRestaurants, filterNearby, filterNewest, shuffledOrder]);
+  }, [categoryFilteredRestaurants, filterNearby, shuffledOrder]);
 
   // Visible restaurants based on pagination
   const visibleRestaurants = useMemo(() => {
@@ -721,10 +704,6 @@ const Results = () => {
             <button onClick={() => setFilterNearby(!filterNearby)} className={`inline-flex items-center justify-center gap-2 px-4 h-10 rounded-full text-sm font-medium transition-all leading-none ${filterNearby ? "bg-primary text-primary-foreground shadow-soft" : "bg-card text-foreground border border-border"}`}>
               <span>{t("الأقرب", "Nearby")}</span>
               <span>📍</span>
-            </button>
-            <button onClick={() => setFilterNewest(!filterNewest)} className={`inline-flex items-center justify-center gap-2 px-4 h-10 rounded-full text-sm font-medium transition-all leading-none ${filterNewest ? "bg-primary text-primary-foreground shadow-soft" : "bg-card text-foreground border border-border"}`}>
-              <span>{t("الأحدث", "Newest")}</span>
-              <span>⏰</span>
             </button>
           </div>}
 
