@@ -176,7 +176,8 @@ const Results = () => {
 
   const fetchPinnedAd = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      // Use Kuwait Timezone to avoid "tomorrow/yesterday" server mismatches
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kuwait' });
 
       // A) Determine placements
       // Normalize category/cuisine usage to match DB storage
@@ -218,8 +219,8 @@ const Results = () => {
       // Filter candidates based on strict rules
       const validAds = (ads || []).filter(ad => {
         // Rule: views_count < max_views 
-        // Strict Eligibility: max_views MUST be defined and > 0 to be valid for this system
-        const hasViewsRemaining = ad.max_views && ad.max_views > 0 && (ad.views_count || 0) < ad.max_views;
+        // Rule: views_count < max_views OR max_views is NULL (unlimited)
+        const hasViewsRemaining = !ad.max_views || ((ad.views_count || 0) < ad.max_views);
 
         // Rule: end_date >= today OR end_date IS NULL
         const notExpiredByDate = !ad.end_date || ad.end_date >= today;
@@ -315,11 +316,16 @@ const Results = () => {
                 .single();
 
               if (currentAd) {
-                const today = new Date().toISOString().split('T')[0];
+                const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kuwait' });
 
                 // Check Mode A (Time + Views) & Mode B (Views only)
-                const viewsExceeded = currentAd.max_views && (currentAd.views_count || 0) >= currentAd.max_views;
-                const dateExpired = currentAd.end_date && currentAd.end_date < today;
+                const viewsExceeded =
+                  currentAd.max_views !== null &&
+                  (currentAd.views_count ?? 0) >= currentAd.max_views;
+
+                const dateExpired =
+                  currentAd.end_date !== null &&
+                  currentAd.end_date < today;
 
                 if (viewsExceeded || dateExpired) {
                   await supabase
