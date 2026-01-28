@@ -12,6 +12,7 @@ import UnifiedRestaurantDetail from "@/components/UnifiedRestaurantDetail";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
+import { trackRestaurantInteraction } from "@/lib/analytics";
 import { useToast } from "@/hooks/use-toast";
 import { isValidBranch } from "@/lib/locationUtils";
 import { useGeolocation, calculateDistance } from "@/hooks/useGeolocation";
@@ -153,46 +154,24 @@ const Results = () => {
   };
 
   // Unified Click Handler for Analytics & ROI
-  const handleUnifiedClick = async (
+  const handleUnifiedClick = (
     restaurant: any,
     interactionType: string,
     targetUrl?: string | null,
     adId?: string
   ) => {
-    // 1. Redirection (Immediate & Non-blocking)
+    // 1. Redirection (Immediate)
     if (targetUrl) {
       window.open(targetUrl, '_blank', 'noopener,noreferrer');
     }
 
-    // 2. Logging (Fire & Forget pattern)
-    try {
-      // A) Analytics Log
-      const interactionData = {
-        restaurant_id: restaurant.id,
-        interaction_type: interactionType,
-        user_id: user?.id || null,
-        ad_id: adId || null
-      };
-
-      // Use a non-blocking promise to ensure UI is responsive
-      // Note: Since we opened a new tab, this page remains active, so await is safe here.
-      // We prioritize the insert to ensure accurate stats.
-      const logPromise = supabase
-        .from("restaurant_interactions")
-        .insert(interactionData);
-
-      // B) Ad Credit Consumption (ROI)
-      let roiPromise = Promise.resolve();
-      if (adId) {
-        roiPromise = supabase.rpc("increment_ad_clicks", { ad_uuid: adId }) as any;
-      }
-
-      await Promise.all([logPromise, roiPromise]);
-
-    } catch (error) {
-      console.error("Error tracking click:", error);
-      // Do not show error to user as action was successful (tab opened)
-    }
+    // 2. Logging (Background)
+    trackRestaurantInteraction(
+      restaurant.id,
+      interactionType,
+      user?.id,
+      adId
+    );
   };
 
   const fetchPinnedAd = async () => {
@@ -205,21 +184,21 @@ const Results = () => {
       if (category !== "الكل") {
         const { data: cuisineData } = await supabase
           .from("cuisines")
-          .select("name_en")
+          .select("name, name_en")
           .eq("name", category)
-          .single();
+          .maybeSingle();
 
-        if (cuisineData?.name_en) {
-          // Robust slug generation: replace non-alphanumeric with _, collapse _, lowercase
-          const slug = cuisineData.name_en
-            .toLowerCase()
-            .trim()
-            .replace(/[^a-z0-9]+/g, '_')
-            .replace(/_+/g, '_')
-            .replace(/^_+|_+$/g, '');
+        const rawName = cuisineData?.name_en || cuisineData?.name || category;
 
-          cuisinePlacement = `pinned_ad_cuisine_${slug}`;
-        }
+        // Robust slug generation matching Admin.tsx: replace non-alphanumeric with _, collapse _, lowercase
+        const slug = rawName
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/_+/g, '_')
+          .replace(/^_+|_+$/g, '');
+
+        cuisinePlacement = `pinned_ad_cuisine_${slug}`;
       }
 
       const globalPlacement = "pinned_ad_all";
@@ -760,8 +739,7 @@ const Results = () => {
     ? visibleRestaurants.filter(r => r.id !== pinnedAdRestaurant?.id)
     : visibleRestaurants;
   const handleRestaurantClick = (restaurant: any) => {
-    // Prepare data for popup
-    const primaryBranch = restaurant.branches?.[0] || restaurants.find(r => r.id === restaurant.id)?.branches?.[0];
+    // Use the already transformed restaurant data (which has the nearest branch)
     setSelectedRestaurantData({
       id: restaurant.id,
       name: language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name,
@@ -769,13 +747,23 @@ const Results = () => {
       cuisine: restaurant.cuisine,
       phone: restaurant.phone,
       website: restaurant.website,
-      mapsUrl: primaryBranch?.google_maps_url || restaurant.mapsUrl || null,
-      latitude: primaryBranch?.latitude || restaurant.latitude,
-      longitude: primaryBranch?.longitude || restaurant.longitude,
-      address: primaryBranch?.address || restaurant.address,
+      mapsUrl: restaurant.mapsUrl,
+      latitude: restaurant.latitude,
+      longitude: restaurant.longitude,
+      address: restaurant.address,
       deliveryApps: restaurant.deliveryApps,
-      adId: restaurant.adId
+      adId: restaurant.adId,
+      hasVerifiedLocation: restaurant.hasVerifiedLocation
     });
+
+    // Track detail view
+    trackRestaurantInteraction(
+      restaurant.id,
+      'view_detail',
+      user?.id,
+      restaurant.adId
+    );
+
     setShowRestaurantDetail(true);
   };
   return <div className="min-h-screen bg-gradient-to-b from-primary/10 via-background to-background pb-24" dir={language === "ar" ? "rtl" : "ltr"}>
@@ -863,8 +851,8 @@ const Results = () => {
 
                 {/* Ad Badge - Always show for pinned ad */}
                 <div className="absolute top-3 right-3">
-                  <span className="inline-flex items-center justify-center bg-accent text-accent-foreground font-bold rounded-full shadow-soft py-[3px] px-[13px] text-center font-sans text-base">
-                    {t("إعلان مثبت", "Pinned Ad")}
+                  <span className="inline-flex items-center justify-center bg-accent text-accent-foreground font-bold rounded-full shadow-soft py-[3px] px-[13px] text-center font-sans text-sm">
+                    {t("إعلان", "Ad")}
                   </span>
                 </div>
 

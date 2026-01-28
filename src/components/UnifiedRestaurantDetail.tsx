@@ -12,6 +12,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import { ar, enUS } from "date-fns/locale";
 import { getDeliveryAppColor } from "@/lib/deliveryApps";
+import { trackRestaurantInteraction } from "@/lib/analytics";
+import { Globe } from "lucide-react";
 import GuestSignInPrompt from "@/components/GuestSignInPrompt";
 interface Review {
   id: string;
@@ -40,6 +42,9 @@ export interface UnifiedRestaurantData {
   latitude?: number | null;
   longitude?: number | null;
   mapsUrl?: string | null;
+  hasVerifiedLocation?: boolean;
+  website?: string | null;
+  adId?: string | null;
 }
 interface UnifiedRestaurantDetailProps {
   isOpen: boolean;
@@ -345,8 +350,34 @@ const UnifiedRestaurantDetail = ({
   // STRICT LOGIC: Phone icon only shows if admin added phone number
   const canCall = !!restaurant.phone?.trim();
   const handleCall = () => {
-    if (!restaurant.phone) return;
+    if (!restaurant.phone || !restaurant.id) return;
+
+    // Track interaction
+    trackRestaurantInteraction(
+      restaurant.id,
+      'phone',
+      user?.id,
+      restaurant.adId
+    );
+
     window.location.href = `tel:${normalizePhone(restaurant.phone)}`;
+  };
+
+  // STRICT LOGIC: Website icon only shows if admin added website URL
+  const canVisitWebsite = !!restaurant.website?.trim();
+  const handleWebsite = () => {
+    if (!restaurant.website || !restaurant.id) return;
+    const url = normalizeWebUrl(restaurant.website);
+    if (url) {
+      // Track interaction
+      trackRestaurantInteraction(
+        restaurant.id,
+        'website',
+        user?.id,
+        restaurant.adId
+      );
+      openExternal(url);
+    }
   };
 
   // STRICT LOGIC: Location icon only shows if admin added mapsUrl
@@ -360,9 +391,18 @@ const UnifiedRestaurantDetail = ({
   const canShowDirections = hasManualMapsUrl;
 
   const handleDirections = () => {
-    if (!hasManualMapsUrl) return; // Only allow if manually added
+    if (!hasManualMapsUrl || !restaurant.id) return; // Only allow if manually added
+
+    // Track interaction
+    trackRestaurantInteraction(
+      restaurant.id,
+      'map',
+      user?.id,
+      restaurant.adId
+    );
 
     // Hand off to parent for tracking + opening (if handler exists)
+    // Note: Parent might track again, but trackRestaurantInteraction handles deduplication/safety
     if (onMapClick) {
       onMapClick();
       return;
@@ -375,7 +415,16 @@ const UnifiedRestaurantDetail = ({
   };
 
   const handleDeliveryApp = (app: DeliveryApp) => {
-    if (!app.url) return;
+    if (!app.url || !restaurant.id) return;
+
+    // Track interaction
+    trackRestaurantInteraction(
+      restaurant.id,
+      `delivery_${app.name.toLowerCase()}`,
+      user?.id,
+      restaurant.adId
+    );
+
     // Allow parent to track clicks (e.g., sponsored ads)
     onDeliveryAppClick?.(app);
     const url = normalizeWebUrl(app.url);
@@ -456,6 +505,13 @@ const UnifiedRestaurantDetail = ({
                   {canCall && (
                     <button onClick={handleCall} className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors bg-primary/10 hover:bg-primary/20">
                       <Phone className="w-5 h-5 text-primary" />
+                    </button>
+                  )}
+
+                  {/* Website */}
+                  {canVisitWebsite && (
+                    <button onClick={handleWebsite} className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors bg-primary/10 hover:bg-primary/20">
+                      <Globe className="w-5 h-5 text-primary" />
                     </button>
                   )}
 

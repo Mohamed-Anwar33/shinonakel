@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import BottomNav from "@/components/BottomNav";
 import UnifiedRestaurantDetail from "@/components/UnifiedRestaurantDetail";
 import { getDeliveryAppColor } from "@/lib/deliveryApps";
+import { trackRestaurantInteraction } from "@/lib/analytics";
 
 interface RestaurantFromDB {
   id: string;
@@ -54,7 +55,7 @@ const UserProfile = () => {
   const { user } = useAuth();
   const { language, t } = useLanguage();
   const { toast } = useToast();
-  
+
   const [profileData, setProfileData] = useState<UserProfileData | null>(null);
   const [restaurants, setRestaurants] = useState<SavedRestaurant[]>([]);
   const [cuisines, setCuisines] = useState<{ name: string; emoji: string; name_en: string | null }[]>([]);
@@ -244,7 +245,7 @@ const UserProfile = () => {
       .or(`name.ilike.${restaurant.name},name_en.ilike.${restaurant.name}`)
       .limit(1)
       .maybeSingle();
-    
+
     if (data) {
       // Fetch branches, delivery apps, and rating
       const [branchesRes, appsRes, ratingRes] = await Promise.all([
@@ -277,6 +278,14 @@ const UserProfile = () => {
         avgRating: restaurant.rating || 0
       });
     }
+
+    // Track detail view
+    trackRestaurantInteraction(
+      data?.id || restaurant.id,
+      'view_detail',
+      user?.id
+    );
+
     setShowDetail(true);
   };
 
@@ -295,7 +304,7 @@ const UserProfile = () => {
             .select("google_maps_url, latitude, longitude")
             .eq("restaurant_id", data.id)
             .limit(1);
-          
+
           if (branches?.[0]?.google_maps_url) {
             window.open(branches[0].google_maps_url, '_blank', 'noopener,noreferrer');
           } else if (branches?.[0]?.latitude && branches?.[0]?.longitude) {
@@ -343,7 +352,7 @@ const UserProfile = () => {
             </AvatarFallback>
           </Avatar>
           <h2 className="text-xl font-bold">{profileData.username}</h2>
-          
+
           {/* Stats and Action */}
           <div className="flex items-center justify-center gap-3 mt-3">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-full text-sm">
@@ -472,11 +481,13 @@ const UserProfile = () => {
           image_url: selectedRestaurant.image_url,
           cuisine: selectedRestaurant.cuisine,
           phone: selectedRestaurant.phone,
+          website: selectedRestaurant.website,
           rating: selectedRestaurant.avgRating,
           address: selectedRestaurant.branches?.[0]?.address,
           latitude: selectedRestaurant.branches?.[0]?.latitude,
           longitude: selectedRestaurant.branches?.[0]?.longitude,
-          mapsUrl: selectedRestaurant.branches?.[0]?.google_maps_url
+          mapsUrl: selectedRestaurant.branches?.[0]?.google_maps_url,
+          hasVerifiedLocation: selectedRestaurant.branches?.some(b => b.google_maps_url && b.google_maps_url.trim().length > 0)
         } : null}
         ownerName={profileData.username}
         ownerId={profileData.id}

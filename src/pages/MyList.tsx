@@ -12,6 +12,7 @@ import BottomNav from "@/components/BottomNav";
 import UnifiedRestaurantDetail from "@/components/UnifiedRestaurantDetail";
 import CompactRestaurantCard from "@/components/CompactRestaurantCard";
 import { getDeliveryAppColor } from "@/lib/deliveryApps";
+import { trackRestaurantInteraction } from "@/lib/analytics";
 interface SavedRestaurant {
   id: string;
   name: string;
@@ -163,7 +164,7 @@ const MyList = () => {
       });
       if (error) throw error;
       setRestaurants(data || []);
-      
+
       // Fetch restaurant data for delivery apps
       if (data && data.length > 0) {
         const names = data.map(r => r.name);
@@ -171,14 +172,14 @@ const MyList = () => {
           .from("restaurants")
           .select("id, name")
           .in("name", names);
-        
+
         if (restaurantData && restaurantData.length > 0) {
           const ids = restaurantData.map(r => r.id);
           const [branchesRes, appsRes] = await Promise.all([
             supabase.from("restaurant_branches").select("restaurant_id, latitude, longitude, address, google_maps_url").in("restaurant_id", ids),
             supabase.from("restaurant_delivery_apps").select("restaurant_id, app_name, app_url").in("restaurant_id", ids)
           ]);
-          
+
           const dataMap: Record<string, RestaurantFromDB> = {};
           restaurantData.forEach(r => {
             dataMap[r.name] = {
@@ -266,6 +267,14 @@ const MyList = () => {
         avgRating: restaurant.rating || 0
       });
     }
+
+    // Track detail view
+    trackRestaurantInteraction(
+      data?.id || restaurant.id,
+      'view_detail',
+      user?.id
+    );
+
     setShowDetail(true);
   };
   const handleMapClick = (restaurant: SavedRestaurant, e: React.MouseEvent) => {
@@ -279,141 +288,143 @@ const MyList = () => {
   };
   if (isGuest || !user) {
     return <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 pb-24">
-        <motion.div initial={{
+      <motion.div initial={{
         opacity: 0,
         y: 20
       }} animate={{
         opacity: 1,
         y: 0
       }} className="text-center">
-          <Lock className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-          <h2 className="text-xl font-bold mb-2">{t("سجّل دخولك", "Sign in")}</h2>
-          <p className="text-muted-foreground mb-6">
-            {t("قم بتسجيل الدخول لحفظ مطاعمك المفضلة", "Sign in to save your favorite restaurants")}
-          </p>
-          <Button onClick={() => navigate("/welcome")} className="gap-2">
-            {t("تسجيل الدخول", "Sign in")}
-          </Button>
-        </motion.div>
-        <BottomNav />
-      </div>;
+        <Lock className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+        <h2 className="text-xl font-bold mb-2">{t("سجّل دخولك", "Sign in")}</h2>
+        <p className="text-muted-foreground mb-6">
+          {t("قم بتسجيل الدخول لحفظ مطاعمك المفضلة", "Sign in to save your favorite restaurants")}
+        </p>
+        <Button onClick={() => navigate("/welcome")} className="gap-2">
+          {t("تسجيل الدخول", "Sign in")}
+        </Button>
+      </motion.div>
+      <BottomNav />
+    </div>;
   }
   return <div className="min-h-screen bg-background pb-24" dir={language === "ar" ? "rtl" : "ltr"}>
-      {/* Header */}
-      <header className="bg-card border-b border-border px-4 py-3">
-        <div className="max-w-md mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)}>
-              {language === "ar" ? <ArrowRight className="w-6 h-6" /> : <ArrowLeft className="w-6 h-6" />}
-            </button>
-            <h1 className="text-lg font-bold">{t("قائمتي", "My List")}</h1>
-          </div>
-          <span className="text-sm text-muted-foreground">
-            {restaurants.length} {t("مطعم", "restaurants")}
-          </span>
+    {/* Header */}
+    <header className="bg-card border-b border-border px-4 py-3">
+      <div className="max-w-md mx-auto flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)}>
+            {language === "ar" ? <ArrowRight className="w-6 h-6" /> : <ArrowLeft className="w-6 h-6" />}
+          </button>
+          <h1 className="text-lg font-bold">{t("قائمتي", "My List")}</h1>
         </div>
-        
-        {/* Search Bar */}
-        <div className="max-w-md mx-auto mt-3 relative">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input type="text" placeholder={t("ابحث عن مطعم...", "Search for a restaurant...")} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pr-9 pl-9" />
-          {searchQuery && <button onClick={() => setSearchQuery("")} className="absolute left-3 top-1/2 -translate-y-1/2">
-              <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-            </button>}
-        </div>
+        <span className="text-sm text-muted-foreground">
+          {restaurants.length} {t("مطعم", "restaurants")}
+        </span>
+      </div>
 
-        {/* Search Results Dropdown */}
-        {searchQuery.length >= 2 && <div className="max-w-md mx-auto mt-2 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
-            {isSearching ? <div className="p-4 text-center">
-                <div className="animate-spin w-5 h-5 border-2 border-primary border-t-transparent rounded-full mx-auto" />
-              </div> : searchResults.length > 0 ? <div className="max-h-64 overflow-y-auto">
-                {searchResults.map(result => <button key={result.id} onClick={() => {
+      {/* Search Bar */}
+      <div className="max-w-md mx-auto mt-3 relative">
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input type="text" placeholder={t("ابحث عن مطعم...", "Search for a restaurant...")} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pr-9 pl-9" />
+        {searchQuery && <button onClick={() => setSearchQuery("")} className="absolute left-3 top-1/2 -translate-y-1/2">
+          <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+        </button>}
+      </div>
+
+      {/* Search Results Dropdown */}
+      {searchQuery.length >= 2 && <div className="max-w-md mx-auto mt-2 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+        {isSearching ? <div className="p-4 text-center">
+          <div className="animate-spin w-5 h-5 border-2 border-primary border-t-transparent rounded-full mx-auto" />
+        </div> : searchResults.length > 0 ? <div className="max-h-64 overflow-y-auto">
+          {searchResults.map(result => <button key={result.id} onClick={() => {
             setSelectedRestaurant(result);
             setShowDetail(true);
             setSearchQuery("");
           }} className="w-full flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors border-b border-border last:border-b-0">
-                    {result.image_url ? <img src={result.image_url} alt={result.name} className="w-10 h-10 rounded-lg object-cover" /> : <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-lg">🍽️</div>}
-                    <div className="flex-1 text-right">
-                      <p className="font-medium text-sm">{result.name}</p>
-                      <p className="text-xs text-muted-foreground">{getCuisineDisplay(result.cuisine).emoji} {getCuisineDisplay(result.cuisine).name}</p>
-                    </div>
-                  </button>)}
-              </div> : <div className="p-4 text-center text-sm text-muted-foreground">
-                {t("لا توجد نتائج", "No results found")}
-              </div>}
-          </div>}
-      </header>
-
-      <main className="max-w-md mx-auto px-4 py-6">
-        {isLoading ? <div className="text-center py-12">
-            <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
-          </div> : filteredRestaurants.length === 0 && searchQuery ? <motion.div initial={{
-        opacity: 0,
-        y: 20
-      }} animate={{
-        opacity: 1,
-        y: 0
-      }} className="text-center py-12">
-            <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
-              {t("لا توجد نتائج لـ", "No results for")} "{searchQuery}"
-            </p>
-          </motion.div> : restaurants.length === 0 ? <motion.div initial={{
-        opacity: 0,
-        y: 20
-      }} animate={{
-        opacity: 1,
-        y: 0
-      }} className="text-center py-12">
-            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-              <Plus className="w-8 h-8 text-muted-foreground" />
+            {result.image_url ? <img src={result.image_url} alt={result.name} className="w-10 h-10 rounded-lg object-cover" /> : <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-lg">🍽️</div>}
+            <div className="flex-1 text-right">
+              <p className="font-medium text-sm">{result.name}</p>
+              <p className="text-xs text-muted-foreground">{getCuisineDisplay(result.cuisine).emoji} {getCuisineDisplay(result.cuisine).name}</p>
             </div>
-            <h2 className="text-lg font-bold mb-2">{t("قائمتك فارغة", "Your list is empty")}</h2>
-            <p className="text-muted-foreground mb-6">
-              {t("أضف مطاعمك المفضلة هنا", "Add your favorite restaurants here")}
-            </p>
-            <Button onClick={() => navigate("/")} variant="outline">
-              {t("استكشف المطاعم", "Explore restaurants")}
-            </Button>
-          </motion.div> : <div className="space-y-3">
-            {filteredRestaurants.map((restaurant, index) => {
-              const cuisineDisplay = getCuisineDisplay(restaurant.category);
-              const deliveryApps = restaurantsData[restaurant.name]?.deliveryApps || [];
-              
-              return (
-                <CompactRestaurantCard
-                  key={restaurant.id}
-                  name={restaurant.name}
-                  cuisine={`${cuisineDisplay.emoji} ${cuisineDisplay.name}`}
-                  image={restaurant.image_url || "/placeholder.svg"}
-                  rating={restaurant.rating || 0}
-                  distance={restaurant.distance || undefined}
-                  mapUrl={restaurantsData[restaurant.name]?.branches?.[0]?.google_maps_url}
-                  deliveryApps={deliveryApps}
-                  showDelete={true}
-                  onDeleteClick={() => handleDelete(restaurant.id, { stopPropagation: () => {} } as React.MouseEvent)}
-                  onMapClick={() => handleMapClick(restaurant, { stopPropagation: () => {} } as React.MouseEvent)}
-                  onClick={() => handleRestaurantClick(restaurant)}
-                />
-              );
-            })}
-          </div>}
-      </main>
+          </button>)}
+        </div> : <div className="p-4 text-center text-sm text-muted-foreground">
+          {t("لا توجد نتائج", "No results found")}
+        </div>}
+      </div>}
+    </header>
 
-      <BottomNav />
+    <main className="max-w-md mx-auto px-4 py-6">
+      {isLoading ? <div className="text-center py-12">
+        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
+      </div> : filteredRestaurants.length === 0 && searchQuery ? <motion.div initial={{
+        opacity: 0,
+        y: 20
+      }} animate={{
+        opacity: 1,
+        y: 0
+      }} className="text-center py-12">
+        <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+        <p className="text-muted-foreground">
+          {t("لا توجد نتائج لـ", "No results for")} "{searchQuery}"
+        </p>
+      </motion.div> : restaurants.length === 0 ? <motion.div initial={{
+        opacity: 0,
+        y: 20
+      }} animate={{
+        opacity: 1,
+        y: 0
+      }} className="text-center py-12">
+        <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+          <Plus className="w-8 h-8 text-muted-foreground" />
+        </div>
+        <h2 className="text-lg font-bold mb-2">{t("قائمتك فارغة", "Your list is empty")}</h2>
+        <p className="text-muted-foreground mb-6">
+          {t("أضف مطاعمك المفضلة هنا", "Add your favorite restaurants here")}
+        </p>
+        <Button onClick={() => navigate("/")} variant="outline">
+          {t("استكشف المطاعم", "Explore restaurants")}
+        </Button>
+      </motion.div> : <div className="space-y-3">
+        {filteredRestaurants.map((restaurant, index) => {
+          const cuisineDisplay = getCuisineDisplay(restaurant.category);
+          const deliveryApps = restaurantsData[restaurant.name]?.deliveryApps || [];
 
-      <UnifiedRestaurantDetail isOpen={showDetail} onClose={() => setShowDetail(false)} restaurant={selectedRestaurant ? {
+          return (
+            <CompactRestaurantCard
+              key={restaurant.id}
+              name={restaurant.name}
+              cuisine={`${cuisineDisplay.emoji} ${cuisineDisplay.name}`}
+              image={restaurant.image_url || "/placeholder.svg"}
+              rating={restaurant.rating || 0}
+              distance={restaurant.distance || undefined}
+              mapUrl={restaurantsData[restaurant.name]?.branches?.[0]?.google_maps_url}
+              deliveryApps={deliveryApps}
+              showDelete={true}
+              onDeleteClick={() => handleDelete(restaurant.id, { stopPropagation: () => { } } as React.MouseEvent)}
+              onMapClick={() => handleMapClick(restaurant, { stopPropagation: () => { } } as React.MouseEvent)}
+              onClick={() => handleRestaurantClick(restaurant)}
+            />
+          );
+        })}
+      </div>}
+    </main>
+
+    <BottomNav />
+
+    <UnifiedRestaurantDetail isOpen={showDetail} onClose={() => setShowDetail(false)} restaurant={selectedRestaurant ? {
       id: selectedRestaurant.id,
       name: selectedRestaurant.name,
       image_url: selectedRestaurant.image_url,
       cuisine: selectedRestaurant.cuisine,
       phone: selectedRestaurant.phone,
+      website: selectedRestaurant.website,
       rating: selectedRestaurant.avgRating,
       address: selectedRestaurant.branches?.[0]?.address,
       latitude: selectedRestaurant.branches?.[0]?.latitude,
       longitude: selectedRestaurant.branches?.[0]?.longitude,
-      mapsUrl: selectedRestaurant.branches?.[0]?.google_maps_url
+      mapsUrl: selectedRestaurant.branches?.[0]?.google_maps_url,
+      hasVerifiedLocation: selectedRestaurant.branches?.some(b => b.google_maps_url && b.google_maps_url.trim().length > 0)
     } : null} isOwner={true} />
-    </div>;
+  </div>;
 };
 export default MyList;

@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import restaurant1 from "@/assets/restaurant-1.jpg";
 import logo from "@/assets/logo.png";
+import { trackRestaurantInteraction } from "@/lib/analytics";
 interface Cuisine {
   id: string;
   name: string;
@@ -296,25 +297,14 @@ const Index = () => {
   const handleRestaurantClick = async (restaurant: WeeklyPickRestaurant) => {
     setSelectedRestaurant(restaurant);
     setShowRestaurantDetail(true);
-    if (restaurant.adId) {
-      try {
-        await supabase.from("ad_interactions").insert({
-          ad_id: restaurant.adId,
-          interaction_type: "click",
-          user_id: user?.id || null
-        });
-        const {
-          data: currentAd
-        } = await supabase.from("advertisements").select("clicks_count").eq("id", restaurant.adId).single();
-        if (currentAd) {
-          await supabase.from("advertisements").update({
-            clicks_count: (currentAd.clicks_count || 0) + 1
-          }).eq("id", restaurant.adId);
-        }
-      } catch (error) {
-        console.error("Error tracking click:", error);
-      }
-    }
+
+    // Unified tracking
+    trackRestaurantInteraction(
+      restaurant.id,
+      'view_detail',
+      user?.id,
+      restaurant.adId
+    );
   };
   return <div className="min-h-screen bg-background pb-24" dir={language === "ar" ? "rtl" : "ltr"}>
     <Header />
@@ -396,6 +386,14 @@ const Index = () => {
                       const searchQuery = encodeURIComponent(restaurant.name);
                       window.open(`https://www.google.com/maps/search/${searchQuery}`, '_blank', 'noopener,noreferrer');
                     }
+
+                    // Unified tracking
+                    trackRestaurantInteraction(
+                      restaurant.id,
+                      'map',
+                      user?.id,
+                      restaurant.adId
+                    );
                   }} className="w-7 h-7 shrink-0 rounded-full bg-primary/10 hover:bg-primary/20 inline-flex items-center justify-center transition-colors text-primary">
                     <MapPin className="w-3.5 h-3.5 mb-[4px]" />
                   </button>
@@ -417,10 +415,13 @@ const Index = () => {
       cuisine: selectedRestaurant.cuisine,
       rating: selectedRestaurant.avgRating,
       phone: selectedRestaurant.phone,
+      website: selectedRestaurant.website,
+      adId: selectedRestaurant.adId,
       address: selectedRestaurant.branches?.[0]?.address,
       latitude: selectedRestaurant.branches?.[0]?.latitude,
       longitude: selectedRestaurant.branches?.[0]?.longitude,
-      mapsUrl: selectedRestaurant.branches?.[0]?.google_maps_url
+      mapsUrl: selectedRestaurant.branches?.[0]?.google_maps_url,
+      hasVerifiedLocation: selectedRestaurant.branches?.some(b => b.google_maps_url && b.google_maps_url.trim().length > 0)
     } : null} />
 
     <GuestSignInPrompt isOpen={showGuestPrompt} onClose={() => setShowGuestPrompt(false)} />
