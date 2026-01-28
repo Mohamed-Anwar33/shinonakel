@@ -1,7 +1,8 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ArrowLeft, Loader2, Star, Heart, Phone, MapPin, Globe } from "lucide-react";
+import { ArrowRight, ArrowLeft, Loader2, Star, Heart, Phone, MapPin, Globe, ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import CompactRestaurantCard from "@/components/CompactRestaurantCard";
 import BottomNav from "@/components/BottomNav";
 import GoogleMapView from "@/components/GoogleMapView";
@@ -137,6 +138,11 @@ const Results = () => {
   const [pinnedAdRestaurantId, setPinnedAdRestaurantId] = useState<string | null>(null);
   const [pinnedAdId, setPinnedAdId] = useState<string | null>(null);
   const pinnedAdViewTracked = useRef(false);
+  
+  // State for pagination and shuffle
+  const [visibleCount, setVisibleCount] = useState(10);
+  const [shuffledOrder, setShuffledOrder] = useState<string[]>([]); // Stores restaurant IDs in shuffled order
+  const shuffleKey = useRef<string>(""); // Track when to re-shuffle
 
   // Show location error if it occurs
   useEffect(() => {
@@ -393,7 +399,18 @@ const Results = () => {
       };
     });
   }, [restaurants, savedRestaurantIds, userLat, userLon, t, geocodedCoords, pinnedAdRestaurantId, pinnedAdId]);
-  const filteredRestaurants = useMemo(() => {
+  // Fisher-Yates shuffle function
+  const shuffleArray = useCallback(<T,>(array: T[]): T[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }, []);
+
+  // Pre-filter restaurants by category and newest filter
+  const categoryFilteredRestaurants = useMemo(() => {
     let filtered = category === "الكل" ? [...transformedRestaurants] : transformedRestaurants.filter(r => {
       // البحث في الفئة الرئيسية
       if (r.cuisine === category) return true;
@@ -410,32 +427,90 @@ const Results = () => {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       filtered = filtered.filter(r => r.createdAt >= thirtyDaysAgo);
     }
-    return filtered.sort((a, b) => {
-      // Pinned ad always comes first
-      if (a.isSponsored && !b.isSponsored) return -1;
-      if (!a.isSponsored && b.isSponsored) return 1;
+    return filtered;
+  }, [category, filterNewest, transformedRestaurants, restaurants]);
+
+  // Generate shuffle key based on filters to detect when to re-shuffle
+  const currentShuffleKey = useMemo(() => {
+    return `${category}-${filterNearby}-${filterNewest}`;
+  }, [category, filterNearby, filterNewest]);
+
+  // Shuffle restaurants when filters change or on initial load
+  useEffect(() => {
+    if (currentShuffleKey !== shuffleKey.current && categoryFilteredRestaurants.length > 0) {
+      shuffleKey.current = currentShuffleKey;
       
-      if (filterNearby && filterNewest) {
-        const aDistance = a.distanceNum ?? Infinity;
-        const bDistance = b.distanceNum ?? Infinity;
-        if (aDistance !== bDistance) {
-          return aDistance - bDistance;
+      // Separate pinned ad from other restaurants
+      const pinnedAd = categoryFilteredRestaurants.find(r => r.isSponsored);
+      const otherRestaurants = categoryFilteredRestaurants.filter(r => !r.isSponsored);
+      
+      // Shuffle only non-pinned restaurants
+      const shuffledIds = shuffleArray(otherRestaurants).map(r => r.id);
+      
+      // Pinned ad always first (if exists)
+      const finalOrder = pinnedAd ? [pinnedAd.id, ...shuffledIds] : shuffledIds;
+      
+      setShuffledOrder(finalOrder);
+      setVisibleCount(10); // Reset to first 10 when filters change
+    }
+  }, [currentShuffleKey, categoryFilteredRestaurants, shuffleArray]);
+
+  // Apply sorting based on filters and shuffled order
+  const filteredRestaurants = useMemo(() => {
+    // If nearby or newest filter is active, use deterministic sorting
+    if (filterNearby || filterNewest) {
+      return categoryFilteredRestaurants.sort((a, b) => {
+        // Pinned ad always comes first
+        if (a.isSponsored && !b.isSponsored) return -1;
+        if (!a.isSponsored && b.isSponsored) return 1;
+        
+        if (filterNearby && filterNewest) {
+          const aDistance = a.distanceNum ?? Infinity;
+          const bDistance = b.distanceNum ?? Infinity;
+          if (aDistance !== bDistance) {
+            return aDistance - bDistance;
+          }
+          return b.createdAt.getTime() - a.createdAt.getTime();
+        } else if (filterNearby) {
+          const aDistance = a.distanceNum ?? Infinity;
+          const bDistance = b.distanceNum ?? Infinity;
+          if (aDistance !== bDistance) {
+            return aDistance - bDistance;
+          }
+          return b.createdAt.getTime() - a.createdAt.getTime();
+        } else if (filterNewest) {
+          return b.createdAt.getTime() - a.createdAt.getTime();
         }
-        return b.createdAt.getTime() - a.createdAt.getTime();
-      } else if (filterNearby) {
-        const aDistance = a.distanceNum ?? Infinity;
-        const bDistance = b.distanceNum ?? Infinity;
-        if (aDistance !== bDistance) {
-          return aDistance - bDistance;
-        }
-        // Fallback to default sort if distances are equal (or both unknown)
-        return b.createdAt.getTime() - a.createdAt.getTime();
-      } else if (filterNewest) {
-        return b.createdAt.getTime() - a.createdAt.getTime();
-      }
-      return 0;
+        return 0;
+      });
+    }
+    
+    // Use shuffled order for random display
+    if (shuffledOrder.length === 0) {
+      return categoryFilteredRestaurants;
+    }
+    
+    // Sort by shuffled order
+    const orderMap = new Map(shuffledOrder.map((id, index) => [id, index]));
+    return [...categoryFilteredRestaurants].sort((a, b) => {
+      const orderA = orderMap.get(a.id) ?? Infinity;
+      const orderB = orderMap.get(b.id) ?? Infinity;
+      return orderA - orderB;
     });
-  }, [category, filterNearby, filterNewest, transformedRestaurants]);
+  }, [categoryFilteredRestaurants, filterNearby, filterNewest, shuffledOrder]);
+
+  // Visible restaurants based on pagination
+  const visibleRestaurants = useMemo(() => {
+    return filteredRestaurants.slice(0, visibleCount);
+  }, [filteredRestaurants, visibleCount]);
+
+  // Load more function
+  const loadMore = useCallback(() => {
+    setVisibleCount(prev => Math.min(prev + 10, filteredRestaurants.length));
+  }, [filteredRestaurants.length]);
+
+  // Remaining count
+  const remainingCount = filteredRestaurants.length - visibleCount;
   const getCuisineDisplay = (cuisineName: string) => {
     const cuisine = cuisines.find(c => c.name === cuisineName);
     const displayName = language === "en" && cuisine?.name_en ? cuisine.name_en : cuisineName;
@@ -541,11 +616,10 @@ const Results = () => {
     handleRestaurantInteraction(restaurant, 'location', url);
   };
 
-  // Get featured restaurant - either selected one or first one
   // Get featured restaurant - either selected one or first one. 
   // If Near By is active, we force the first result (which is nearest).
-  const featuredRestaurant = filterNearby ? filteredRestaurants.length > 0 ? filteredRestaurants[0] : null : selectedRestaurantId ? filteredRestaurants.find(r => r.id === selectedRestaurantId) || filteredRestaurants[0] : filteredRestaurants[0] || null;
-  const moreRestaurants = filteredRestaurants.filter(r => r.id !== featuredRestaurant?.id);
+  const featuredRestaurant = visibleRestaurants.length > 0 ? visibleRestaurants[0] : null;
+  const moreRestaurants = visibleRestaurants.slice(1); // All visible restaurants except the featured one
   const handleRestaurantClick = (restaurant: any) => {
     // Prepare data for popup
     const primaryBranch = restaurant.branches?.[0] || restaurants.find(r => r.id === restaurant.id)?.branches?.[0];
@@ -609,7 +683,7 @@ const Results = () => {
         {/* Results Content */}
         {isLoading ? <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div> : filteredRestaurants.length === 0 ? <div className="text-center py-20">
+          </div> : visibleRestaurants.length === 0 ? <div className="text-center py-20">
             <p className="text-muted-foreground">{t("لا توجد مطاعم متاحة حالياً", "No restaurants available currently")}</p>
           </div> : <AnimatePresence mode="wait">
             {viewMode === "map" ? <motion.div key="map" initial={{
@@ -720,7 +794,7 @@ const Results = () => {
                     <div className="flex items-center justify-between">
                       <h3 className="font-bold text-lg">{t("المزيد", "More")}</h3>
                       <span className="text-sm text-muted-foreground">
-                        {moreRestaurants.length} {t("مطعم", "restaurants")}
+                        {filteredRestaurants.length - 1} {t("مطعم", "restaurants")}
                       </span>
                     </div>
 
@@ -737,6 +811,26 @@ const Results = () => {
                           <CompactRestaurantCard name={language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name} cuisine={`${getCuisineDisplay(restaurant.cuisine).emoji} ${getCuisineDisplay(restaurant.cuisine).name}`} image={restaurant.image} rating={restaurant.rating} distance={restaurant.distance} deliveryApps={restaurant.deliveryApps} isFavorite={savedRestaurantIds.includes(restaurant.name)} onFavoriteClick={() => toggleFavorite(restaurant)} onMapClick={() => handleMapClick(restaurant)} onClick={() => handleRestaurantClick(restaurant)} onDeliveryAppClick={(app) => handleDeliveryAppClick(restaurant, app)} isSponsored={restaurant.isSponsored} />
                         </motion.div>)}
                     </div>
+                    
+                    {/* Show More Button */}
+                    {remainingCount > 0 && (
+                      <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="flex justify-center pt-4"
+                      >
+                        <Button
+                          onClick={loadMore}
+                          variant="outline"
+                          className="gap-2 rounded-full px-6"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                          <span dir="rtl">
+                            {t("عرض المزيد", "Show More")} ({remainingCount} {t("مطعم متبقي", "remaining")})
+                          </span>
+                        </Button>
+                      </motion.div>
+                    )}
                   </div>}
               </motion.div>}
           </AnimatePresence>}
