@@ -190,25 +190,53 @@ const Results = () => {
   
   const fetchPinnedAd = async () => {
     try {
+      const today = new Date().toISOString().split('T')[0];
+      
       // Determine which placements to look for based on category
       const targetPlacements = category === "الكل" 
         ? ["pinned_ad", "pinned_ad_all"] 
         : ["pinned_ad", "pinned_ad_all", `pinned_ad_cuisine_${category}`];
       
+      // جلب الإعلانات التي تستوفي الشروط:
+      // 1. is_active = true
+      // 2. start_date <= اليوم
+      // 3. views_count < max_views (رصيد مشاهدات متاح)
+      // 4. (end_date >= اليوم أو end_date = null للعقود المفتوحة)
       const { data: ads, error } = await supabase
         .from("advertisements")
-        .select("restaurant_id, id, placement")
+        .select("restaurant_id, id, placement, views_count, max_views, end_date")
         .in("placement", targetPlacements)
         .eq("is_active", true)
-        .lte("start_date", new Date().toISOString().split('T')[0])
-        .gte("end_date", new Date().toISOString().split('T')[0]);
+        .lte("start_date", today);
       
       if (error) throw error;
       
-      if (ads && ads.length > 0) {
-        // Prefer cuisine-specific ad over general ones
-        const cuisineAd = ads.find(ad => ad.placement === `pinned_ad_cuisine_${category}`);
-        const selectedAd = cuisineAd || ads[0];
+      // تصفية الإعلانات بناءً على منطق الاستهلاك المرن
+      const eligibleAds = (ads || []).filter(ad => {
+        // شرط الرصيد: views_count < max_views
+        const hasViewsRemaining = !ad.max_views || (ad.views_count || 0) < ad.max_views;
+        
+        // شرط التاريخ: 
+        // - العقد المكثف: end_date >= اليوم
+        // - العقد المفتوح: end_date = null (يظل نشطاً حتى نفاذ المشاهدات)
+        const isWithinDateRange = !ad.end_date || ad.end_date >= today;
+        
+        return hasViewsRemaining && isWithinDateRange;
+      });
+      
+      if (eligibleAds.length > 0) {
+        // الأولوية للإعلان الخاص بالفئة
+        const cuisineAd = eligibleAds.find(ad => ad.placement === `pinned_ad_cuisine_${category}`);
+        
+        // إذا وُجد أكثر من إعلان، اختيار عشوائي
+        let selectedAd;
+        if (cuisineAd) {
+          selectedAd = cuisineAd;
+        } else {
+          // اختيار عشوائي من الإعلانات المتاحة
+          const randomIndex = Math.floor(Math.random() * eligibleAds.length);
+          selectedAd = eligibleAds[randomIndex];
+        }
         
         setPinnedAdRestaurantId(selectedAd.restaurant_id);
         setPinnedAdId(selectedAd.id);
@@ -217,16 +245,17 @@ const Results = () => {
         if (!pinnedAdViewTracked.current) {
           pinnedAdViewTracked.current = true;
           
+          // تسجيل التفاعل
           await supabase.from("ad_interactions").insert({
             ad_id: selectedAd.id,
             interaction_type: "view",
             user_id: user?.id || null
           });
           
-          // Increment views via RPC (bypasses RLS)
+          // زيادة المشاهدات عبر RPC (تجاوز RLS)
           await supabase.rpc("increment_ad_views", { ad_uuid: selectedAd.id });
           
-          // Check if max_views reached and deactivate if needed
+          // التحقق من وصول المشاهدات للحد الأقصى وإلغاء التنشيط
           const { data: currentAd } = await supabase
             .from("advertisements")
             .select("views_count, max_views")
@@ -234,6 +263,7 @@ const Results = () => {
             .single();
           
           if (currentAd && currentAd.max_views && (currentAd.views_count || 0) >= currentAd.max_views) {
+            // الإغلاق التلقائي عند نفاذ الرصيد
             await supabase
               .from("advertisements")
               .update({ is_active: false })
