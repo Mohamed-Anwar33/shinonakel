@@ -1650,7 +1650,7 @@ const Admin = () => {
                                 <span className="text-sm text-muted-foreground">({restaurant.name_en})</span>
                               )}
                               <span className="text-xs text-muted-foreground">
-                                👆 {restaurantInteractions[restaurant.id] || 0} نقرة
+                                👆 نقرة {restaurantInteractions[restaurant.id] || 0}
                               </span>
                             </div>
                             <p className="text-sm text-muted-foreground">
@@ -2026,7 +2026,7 @@ const Admin = () => {
                               : format(new Date(ad.end_date), "PPP", { locale: ar })}
                           </p>
                           <div className="flex gap-4 text-xs text-muted-foreground flex-row-reverse">
-                            <span>👆 {ad.clicks_count} نقرة</span>
+                            <span>👆 نقرة {ad.clicks_count}</span>
                             <span>👁 {ad.views_count} مشاهدة</span>
                           </div>
                         </div>
