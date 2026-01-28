@@ -44,8 +44,9 @@ export function MapRestaurantSheet({ isOpen, onClose, restaurant }: MapRestauran
     ? restaurant.name_en 
     : restaurant.name;
 
-  // Check if restaurant has valid location for directions
-  const hasValidLocation = restaurant.mapsUrl || (restaurant.latitude && restaurant.longitude && !restaurant.isGeocoded);
+  // STRICT: Only show location icon if mapsUrl exists in database (not from geocoding)
+  // If isGeocoded is true but has mapsUrl, it means it was auto-discovered with verified location
+  const hasValidLocation = !!restaurant.mapsUrl;
 
   const handleGetDirections = () => {
     if (restaurant.mapsUrl) {
@@ -101,13 +102,11 @@ export function MapRestaurantSheet({ isOpen, onClose, restaurant }: MapRestauran
               <h2 className="font-bold text-xl truncate">{displayName}</h2>
               <p className="text-sm text-muted-foreground mb-1">{restaurant.cuisine}</p>
               
-              {/* Distance */}
-              {restaurant.distance && (
-                <p className="text-sm text-muted-foreground mb-2 flex items-center gap-1">
-                  <Navigation className="w-3.5 h-3.5" />
-                  {restaurant.distance}
-                </p>
-              )}
+              {/* Distance - Always show, with fallback text */}
+              <p className="text-sm text-muted-foreground mb-2 flex items-center gap-1">
+                <Navigation className="w-3.5 h-3.5" />
+                {restaurant.distance || "المسافة غير معروفة"}
+              </p>
               
               {/* Rating */}
               <div className="inline-flex items-center gap-1.5 bg-amber-100 px-2.5 py-1 rounded-full">

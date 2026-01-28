@@ -187,7 +187,7 @@ const Map = () => {
         try {
           const geocodedResults = await geocodeMultiple(needsGeocoding);
           
-          // Update restaurants with geocoded coordinates
+          // Update restaurants with geocoded coordinates AND auto-discovered mapsUrl
           setRestaurants(prev => prev.map(restaurant => {
             const geocoded = geocodedResults.get(restaurant.id);
             if (geocoded) {
@@ -195,6 +195,8 @@ const Map = () => {
                 ...restaurant,
                 latitude: geocoded.lat,
                 longitude: geocoded.lng,
+                // Use the auto-discovered Google Maps URL from geocoding
+                mapsUrl: geocoded.mapsUrl,
                 isGeocoded: true,
               };
             }
@@ -231,9 +233,23 @@ const Map = () => {
     return filteredRestaurants.filter(r => r.latitude != null && r.longitude != null);
   }, [filteredRestaurants]);
 
+  // When clicking a marker, open Google Maps directly instead of showing sheet
   const handleRestaurantClick = (restaurant: Restaurant) => {
-    setSelectedRestaurant(restaurant);
-    setShowRestaurantSheet(true);
+    // Only open Google Maps if restaurant has a valid mapsUrl
+    if (restaurant.mapsUrl) {
+      window.open(restaurant.mapsUrl, '_blank', 'noopener,noreferrer');
+    } else if (restaurant.latitude && restaurant.longitude && !restaurant.isGeocoded) {
+      // Has explicit coordinates from DB - open directions
+      window.open(
+        `https://www.google.com/maps/dir/?api=1&destination=${restaurant.latitude},${restaurant.longitude}`,
+        '_blank',
+        'noopener,noreferrer'
+      );
+    } else {
+      // No valid location - show toast or fallback to sheet
+      setSelectedRestaurant(restaurant);
+      setShowRestaurantSheet(true);
+    }
   };
 
   const handleCategoryChange = (cuisineName: string, emoji: string) => {
