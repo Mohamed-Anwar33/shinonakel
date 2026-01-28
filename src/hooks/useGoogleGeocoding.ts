@@ -7,24 +7,29 @@ interface GeocodingResult {
   placeId: string;
   types: string[];
   isPhysicalLocation: boolean;
+  mapsUrl: string; // Auto-generated Google Maps URL
 }
 
-// Cloud kitchen / delivery-only indicators
-const DELIVERY_ONLY_TYPES = [
-  "storage",
-  "warehouse",
-  "establishment", // generic, might be cloud kitchen
-  "point_of_interest", // too generic
-];
-
+// Physical restaurant indicators - ONLY these types are allowed
 const PHYSICAL_LOCATION_TYPES = [
   "restaurant",
   "food",
   "cafe",
   "bakery",
   "bar",
-  "meal_delivery", // has physical location for pickup
   "meal_takeaway",
+];
+
+// Cloud kitchen / delivery-only / invalid indicators
+const EXCLUDED_TYPES = [
+  "storage",
+  "warehouse",
+  "establishment", // too generic without food types
+  "point_of_interest", // too generic
+  "locality",
+  "political",
+  "route",
+  "neighborhood",
 ];
 
 export function useGoogleGeocoding() {
@@ -52,11 +57,10 @@ export function useGoogleGeocoding() {
         return null;
       }
 
-      // Use Places API Text Search for better restaurant matching
-      // Try English name first (more accurate), then Arabic
+      // Use English name first (more accurate), then Arabic
       const searchName = restaurantNameEn || restaurantName;
       
-      // Use exact restaurant name with quotes for precise matching
+      // STRICT: Use exact restaurant name with quotes for precise matching
       const query = encodeURIComponent(`"${searchName}" restaurant Kuwait`);
       
       const response = await fetch(
@@ -70,52 +74,65 @@ export function useGoogleGeocoding() {
       const data = await response.json();
 
       if (data.status === "OK" && data.results && data.results.length > 0) {
-        // Find the result that best matches the restaurant name
+        // STRICT MATCHING: Find result that EXACTLY matches the restaurant name
+        const searchLower = searchName.toLowerCase().trim();
+        const searchWords = searchLower.split(/\s+/).filter((w: string) => w.length > 2);
+        
         const bestResult = data.results.find((result: any) => {
           const formattedAddress = result.formatted_address?.toLowerCase() || '';
-          const searchLower = searchName.toLowerCase();
-          // Check if the result contains the restaurant name
-          return formattedAddress.includes(searchLower) || 
-                 result.types?.includes('restaurant') ||
-                 result.types?.includes('food') ||
-                 result.types?.includes('cafe');
-        }) || data.results[0];
+          const types = result.types || [];
+          
+          // Must be a physical food establishment
+          const isFoodEstablishment = types.some((t: string) => 
+            PHYSICAL_LOCATION_TYPES.includes(t)
+          );
+          
+          if (!isFoodEstablishment) return false;
+          
+          // Check if the result contains significant words from restaurant name
+          const matchCount = searchWords.filter((word: string) => 
+            formattedAddress.includes(word)
+          ).length;
+          
+          // Require at least 50% word match for exact matching
+          return matchCount >= Math.ceil(searchWords.length * 0.5);
+        });
+
+        if (!bestResult) {
+          console.log(`STRICT MATCH FAILED for: ${searchName} - No exact match found`);
+          cacheRef.current.set(cacheKey, null);
+          return null;
+        }
 
         const location = bestResult.geometry.location;
         const types = bestResult.types || [];
         
-        // More strict check for physical locations
-        // Only accept if it's clearly a food establishment
-        const isFoodEstablishment = types.some((t: string) => 
+        // Double-check: Reject if it has excluded types without being a food place
+        const hasExcludedType = types.some((t: string) => 
+          EXCLUDED_TYPES.includes(t)
+        );
+        const hasFoodType = types.some((t: string) => 
           PHYSICAL_LOCATION_TYPES.includes(t)
         );
         
-        // Reject if it's a generic storage/warehouse without food types
-        const isCloudKitchen = types.some((t: string) => 
-          DELIVERY_ONLY_TYPES.includes(t)
-        ) && !isFoodEstablishment;
+        if (hasExcludedType && !hasFoodType) {
+          console.log(`Excluding ${searchName}: has excluded type without food type`);
+          cacheRef.current.set(cacheKey, null);
+          return null;
+        }
 
         // Check if the location is within Kuwait bounds
         const isInKuwait = location.lat >= 28.5 && location.lat <= 30.1 &&
                           location.lng >= 46.5 && location.lng <= 48.5;
 
-        if (!isInKuwait || isCloudKitchen) {
-          console.log(`Skipping ${searchName}: not in Kuwait or cloud kitchen`);
+        if (!isInKuwait) {
+          console.log(`Excluding ${searchName}: not in Kuwait`);
           cacheRef.current.set(cacheKey, null);
           return null;
         }
 
-        // Additional validation: check if result name somewhat matches search
-        const resultName = bestResult.formatted_address?.toLowerCase() || '';
-        const searchNameLower = searchName.toLowerCase();
-        const nameWords = searchNameLower.split(' ').filter((w: string) => w.length > 2);
-        const hasNameMatch = nameWords.some((word: string) => resultName.includes(word));
-        
-        if (!hasNameMatch && !isFoodEstablishment) {
-          console.log(`Skipping ${searchName}: no name match in result`);
-          cacheRef.current.set(cacheKey, null);
-          return null;
-        }
+        // Generate Google Maps URL from the found place
+        const generatedMapsUrl = `https://www.google.com/maps/place/?q=place_id:${bestResult.place_id}`;
 
         const geocodingResult: GeocodingResult = {
           lat: location.lat,
@@ -123,9 +140,11 @@ export function useGoogleGeocoding() {
           displayName: bestResult.formatted_address,
           placeId: bestResult.place_id,
           types,
-          isPhysicalLocation: isFoodEstablishment,
+          isPhysicalLocation: true,
+          mapsUrl: generatedMapsUrl,
         };
 
+        console.log(`✓ STRICT MATCH SUCCESS for: ${searchName}`);
         cacheRef.current.set(cacheKey, geocodingResult);
         return geocodingResult;
       }
@@ -163,12 +182,13 @@ export function useGoogleGeocoding() {
     for (const restaurant of needsGeocoding) {
       const result = await geocodeRestaurant(restaurant.name, restaurant.name_en);
       
+      // Only include if it's a verified physical location with strict matching
       if (result && result.isPhysicalLocation) {
         results.set(restaurant.id, result);
       }
       
-      // Rate limiting: 100ms between requests
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Rate limiting: 150ms between requests
+      await new Promise(resolve => setTimeout(resolve, 150));
     }
 
     return results;
