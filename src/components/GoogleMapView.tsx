@@ -28,65 +28,40 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
   // Default center (Kuwait City)
   const defaultCenter = { lat: 29.3759, lng: 47.9774 };
 
-  // Build branches from manually-entered database data
-  // For restaurants with mapsUrl but no coordinates, use Google Geocoding API
+  // STRICT: Build branches ONLY from admin-entered data (NO auto-geocoding)
+  // Only restaurants with BOTH mapsUrl AND coordinates will appear on map
   useEffect(() => {
-    const processRestaurants = async () => {
-      const manualBranches: Branch[] = [];
+    const manualBranches: Branch[] = [];
 
-      for (const restaurant of restaurants) {
-        // STRICT: Only include if admin manually added mapsUrl
-        // Accept all Google Maps URL formats
-        const hasManualMapsUrl = restaurant.mapsUrl && (
-          restaurant.mapsUrl.includes("google.com/maps") || 
-          restaurant.mapsUrl.includes("maps.app.goo.gl") || 
-          restaurant.mapsUrl.includes("maps.google.com") ||
-          restaurant.mapsUrl.includes("goo.gl/maps")
-        );
-        
-        if (!hasManualMapsUrl) continue;
-        
-        let lat = restaurant.latitude;
-        let lng = restaurant.longitude;
-        
-        // If mapsUrl exists but no coordinates, try to geocode from restaurant name
-        if ((lat == null || lng == null) && apiKey) {
-          try {
-            const response = await fetch(
-              `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(restaurant.name + " Kuwait")}&key=${apiKey}`
-            );
-            const data = await response.json();
-            if (data.results && data.results.length > 0) {
-              const location = data.results[0].geometry.location;
-              lat = location.lat;
-              lng = location.lng;
-            }
-          } catch (error) {
-            console.error("Geocoding error for", restaurant.name, error);
-          }
-        }
-        
-        if (lat != null && lng != null) {
-          manualBranches.push({
-            id: `${restaurant.id}-manual`,
-            lat: lat,
-            lng: lng,
-            restaurantId: restaurant.id,
-            restaurantName: restaurant.name,
-            restaurantImage: restaurant.image || restaurant.image_url,
-            cuisine: restaurant.cuisine,
-            rating: restaurant.rating || null,
-            mapsUrl: restaurant.mapsUrl,
-            address: restaurant.address || "",
-          });
-        }
+    for (const restaurant of restaurants) {
+      // STRICT: Only include if admin manually added mapsUrl
+      // Accept all Google Maps URL formats
+      const hasManualMapsUrl = restaurant.mapsUrl && (
+        restaurant.mapsUrl.includes("google.com/maps") || 
+        restaurant.mapsUrl.includes("maps.app.goo.gl") || 
+        restaurant.mapsUrl.includes("maps.google.com") ||
+        restaurant.mapsUrl.includes("goo.gl/maps")
+      );
+      
+      // STRICT: Must have BOTH mapsUrl AND coordinates (admin-added)
+      if (hasManualMapsUrl && restaurant.latitude != null && restaurant.longitude != null) {
+        manualBranches.push({
+          id: `${restaurant.id}-manual`,
+          lat: restaurant.latitude,
+          lng: restaurant.longitude,
+          restaurantId: restaurant.id,
+          restaurantName: restaurant.name,
+          restaurantImage: restaurant.image || restaurant.image_url,
+          cuisine: restaurant.cuisine,
+          rating: restaurant.rating || null,
+          mapsUrl: restaurant.mapsUrl,
+          address: restaurant.address || "",
+        });
       }
+    }
 
-      setBranches(manualBranches);
-    };
-    
-    processRestaurants();
-  }, [restaurants, apiKey]);
+    setBranches(manualBranches);
+  }, [restaurants]);
 
   // Handle marker click - open the manually-added Maps URL directly
   const handleMarkerClick = (branch: Branch) => {

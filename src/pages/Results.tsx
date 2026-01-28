@@ -266,45 +266,62 @@ const Results = () => {
     }
   }, [locationError, filterNearby, t, toast]);
 
-  // REMOVED: No more auto-geocoding - only manually-added locations are used
+  // Helper: Check if a URL is a valid Google Maps URL
+  const isValidMapsUrl = (url: string | null): boolean => {
+    if (!url) return false;
+    return url.includes("google.com/maps") || 
+           url.includes("maps.app.goo.gl") || 
+           url.includes("maps.google.com") ||
+           url.includes("goo.gl/maps");
+  };
+
+  // STRICT LOCATION LOGIC - Only admin-added data, with Multi-Branch support
   const transformedRestaurants = useMemo(() => {
     return restaurants.map((r, index) => {
       const ratings = r.ratings || [];
       const avgRating = ratings.length > 0 ? Number((ratings.reduce((sum, rating) => sum + rating.rating, 0) / ratings.length).toFixed(1)) : 0;
       const ratingCount = ratings.length;
-      const primaryBranch = r.branches?.find(b => b.google_maps_url) ?? r.branches?.find(b => b.latitude != null && b.longitude != null) ?? r.branches?.[0];
-      const address = primaryBranch?.address || "";
-      const manualMapsUrl = primaryBranch?.google_maps_url || null;
-
-      // STRICT LOCATION LOGIC:
-      // Only show location if admin manually added mapsUrl
-      // Accept all Google Maps URL formats: google.com/maps, maps.app.goo.gl, maps.google.com, goo.gl/maps
-      const hasManualLocation = manualMapsUrl && (
-        manualMapsUrl.includes("google.com/maps") || 
-        manualMapsUrl.includes("maps.app.goo.gl") || 
-        manualMapsUrl.includes("maps.google.com") ||
-        manualMapsUrl.includes("goo.gl/maps")
+      
+      // Get all branches with valid manual Google Maps URLs
+      const branchesWithManualLocation = (r.branches || []).filter(b => 
+        isValidMapsUrl(b.google_maps_url)
       );
       
-      // Has verified location ONLY if manual
-      const hasVerifiedLocation = hasManualLocation;
+      // Check if restaurant has any manual location
+      const hasManualLocation = branchesWithManualLocation.length > 0;
       
-      // Only use manually-added mapsUrl
-      const mapsUrl = manualMapsUrl || null;
-
-      // Use database coords if available
-      const branchLat = primaryBranch?.latitude;
-      const branchLon = primaryBranch?.longitude;
-      
-      // Only show distance if location is manually verified
+      // MULTI-BRANCH LOGIC: Find the nearest branch if user location is available
+      let nearestBranch = branchesWithManualLocation[0] || null;
       let distanceNum: number | null = null;
       let distanceText = "";
-      if (hasVerifiedLocation && userLat != null && userLon != null && branchLat != null && branchLon != null) {
-        distanceNum = calculateDistance(userLat, userLon, branchLat, branchLon);
-        distanceText = `${distanceNum.toFixed(1)} ${t("كم", "km")}`;
-      } else if (locationPermissionDenied && hasVerifiedLocation) {
-        distanceText = t("المسافة غير معروفة", "Distance unknown");
+      
+      if (hasManualLocation && userLat != null && userLon != null) {
+        // Calculate distance to all branches and find the nearest one
+        let minDistance = Infinity;
+        
+        for (const branch of branchesWithManualLocation) {
+          if (branch.latitude != null && branch.longitude != null) {
+            const dist = calculateDistance(userLat, userLon, branch.latitude, branch.longitude);
+            if (dist < minDistance) {
+              minDistance = dist;
+              nearestBranch = branch;
+              distanceNum = dist;
+            }
+          }
+        }
+        
+        // Format distance text only if we found a valid distance
+        if (distanceNum !== null) {
+          distanceText = `${distanceNum.toFixed(1)} ${t("كم", "km")}`;
+        }
       }
+      // NOTE: If location permission denied, distanceText stays empty (no display)
+      
+      // Use nearest branch's data for display
+      const address = nearestBranch?.address || "";
+      const mapsUrl = nearestBranch?.google_maps_url || null;
+      const branchLat = nearestBranch?.latitude || null;
+      const branchLon = nearestBranch?.longitude || null;
       
       return {
         id: r.id,
@@ -330,18 +347,18 @@ const Results = () => {
           top: `${15 + index * 20 % 70}%`,
           right: `${20 + index * 25 % 60}%`
         },
-        latitude: branchLat || null,
-        longitude: branchLon || null,
+        latitude: branchLat,
+        longitude: branchLon,
         createdAt: new Date(r.created_at || Date.now()),
         phone: r.phone,
         website: r.website,
         branches: r.branches,
         address,
-        mapsUrl,
-        hasVerifiedLocation // Only true if admin added mapsUrl
+        mapsUrl, // This is now the NEAREST branch's mapsUrl
+        hasVerifiedLocation: hasManualLocation // Only true if admin added at least one mapsUrl
       };
     });
-  }, [restaurants, savedRestaurantIds, userLat, userLon, t, locationPermissionDenied, pinnedAdRestaurantId, pinnedAdId]);
+  }, [restaurants, savedRestaurantIds, userLat, userLon, t, pinnedAdRestaurantId, pinnedAdId]);
   // Fisher-Yates shuffle function
   const shuffleArray = useCallback(<T,>(array: T[]): T[] => {
     const shuffled = [...array];
