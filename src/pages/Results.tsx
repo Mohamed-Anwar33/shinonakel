@@ -495,34 +495,50 @@ const Results = () => {
     }
   };
   
-  const handleDeliveryAppClick = async (restaurant: any, app: any) => {
-    // Track click if this restaurant has an ad
-    if (restaurant.adId) {
-      try {
-        // Insert interaction record
-        await supabase.from("ad_interactions").insert({
-          ad_id: restaurant.adId,
-          interaction_type: "click",
-          user_id: user?.id || null
-        });
-        
-        // Increment click count via RPC (bypasses RLS)
+  // دالة معالجة النقر على روابط التوصيل أو الموقع الجغرافي
+  const handleRestaurantInteraction = async (restaurant: any, type: string, url?: string) => {
+    try {
+      // 1. تسجيل التفاعل في جدول الإحصائيات العام (interactions)
+      // هذا الجدول يجمع بيانات لجميع المطاعم (المعلن وغير المعلن)
+      await supabase.from("restaurant_interactions").insert({
+        restaurant_id: restaurant.id,
+        interaction_type: type, // مثال: 'talabat', 'deliveroo', 'location'
+        ad_id: restaurant.adId || null, // ربط بالاعلان فقط إذا كان المطعم معلناً حالياً
+        user_id: user?.id || null
+      });
+
+      // 2. تحديث عداد الإعلان فقط إذا كان المطعم يملك إعلاناً نشطاً
+      if (restaurant.adId) {
+        // زيادة عداد النقرات الخاص بالإعلان لغرض المحاسبة والإحصاء المالي
         await supabase.rpc("increment_ad_clicks", { ad_uuid: restaurant.adId });
-      } catch (error) {
-        console.error("Error tracking ad click:", error);
       }
+
+      // 3. فتح الرابط الخارجي في نافذة جديدة
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    } catch (error) {
+      console.error("Error logging interaction:", error);
+      // نفتح الرابط حتى في حال فشل التسجيل لضمان تجربة مستخدم سلسة
+      if (url) window.open(url, '_blank');
     }
+  };
+
+  const handleDeliveryAppClick = async (restaurant: any, app: any) => {
+    await handleRestaurantInteraction(restaurant, app.name.toLowerCase(), app.url);
   };
   
   const handleMapClick = (restaurant: any) => {
+    let url = '';
     if (restaurant.mapsUrl) {
-      window.open(restaurant.mapsUrl, '_blank', 'noopener,noreferrer');
+      url = restaurant.mapsUrl;
     } else if (restaurant.latitude && restaurant.longitude) {
-      window.open(`https://www.google.com/maps/search/?api=1&query=${restaurant.latitude},${restaurant.longitude}`, '_blank', 'noopener,noreferrer');
+      url = `https://www.google.com/maps/search/?api=1&query=${restaurant.latitude},${restaurant.longitude}`;
     } else {
       const searchQuery = encodeURIComponent(restaurant.name);
-      window.open(`https://www.google.com/maps/search/${searchQuery}`, '_blank', 'noopener,noreferrer');
+      url = `https://www.google.com/maps/search/${searchQuery}`;
     }
+    handleRestaurantInteraction(restaurant, 'location', url);
   };
 
   // Get featured restaurant - either selected one or first one
