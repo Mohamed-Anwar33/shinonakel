@@ -60,8 +60,6 @@ const Index = () => {
   const [selectedCategory, setSelectedCategory] = useState("الكل");
   const [selectedRestaurant, setSelectedRestaurant] = useState<WeeklyPickRestaurant | null>(null);
   const [showRestaurantDetail, setShowRestaurantDetail] = useState(false);
-  const [filterNearby, setFilterNearby] = useState(false);
-  const [filterNewest, setFilterNewest] = useState(false);
   const [savedRestaurantIds, setSavedRestaurantIds] = useState<string[]>([]);
   const [weeklyPicks, setWeeklyPicks] = useState<WeeklyPickRestaurant[]>([]);
   const [isLoadingPicks, setIsLoadingPicks] = useState(true);
@@ -333,19 +331,6 @@ const Index = () => {
           {isLoadingCuisines ? <div className="w-72 h-72 sm:w-80 sm:h-80 rounded-full bg-muted animate-pulse" /> : <SpinWheel onResult={handleSpinResult} selectedCategory={selectedCategory} cuisines={cuisines} />}
         </motion.section>
 
-        {/* Filter Buttons */}
-        <section className="mb-4">
-          <div className="flex gap-2">
-            <button onClick={() => setFilterNearby(!filterNearby)} className={`inline-flex items-center justify-center gap-2 px-4 h-10 rounded-full text-sm font-medium transition-all leading-none ${filterNearby ? "bg-primary text-primary-foreground shadow-soft" : "bg-card text-foreground border border-border"}`}>
-              <span>{t("الأقرب", "Nearby")}</span>
-              <span>📍</span>
-            </button>
-            <button onClick={() => setFilterNewest(!filterNewest)} className={`inline-flex items-center justify-center gap-2 px-4 h-10 rounded-full text-sm font-medium transition-all leading-none ${filterNewest ? "bg-primary text-primary-foreground shadow-soft" : "bg-card text-foreground border border-border"}`}>
-              <span>{t("الأحدث", "Newest")}</span>
-              <span>⏰</span>
-            </button>
-          </div>
-        </section>
 
         {/* Weekly Picks Section - يظهر فقط عند وجود إعلانات نشطة */}
         {(isLoadingPicks || weeklyPicks.length > 0) && (
