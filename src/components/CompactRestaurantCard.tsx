@@ -27,6 +27,8 @@ interface CompactRestaurantCardProps {
   onDeleteClick?: () => void;
   // Location status
   locationAvailable?: boolean;
+  // SMART LOCATION: Only show location icon if verified
+  hasVerifiedLocation?: boolean;
 }
 
 const CompactRestaurantCard = ({
@@ -45,9 +47,17 @@ const CompactRestaurantCard = ({
   isSponsored = false,
   showDelete = false,
   onDeleteClick,
-  locationAvailable = true
+  locationAvailable = true,
+  hasVerifiedLocation = false
 }: CompactRestaurantCardProps) => {
   const { t } = useLanguage();
+  
+  // SMART LOCATION LOGIC:
+  // Show location icon ONLY if:
+  // 1. mapUrl exists (admin manually added) OR
+  // 2. hasVerifiedLocation is true (100% exact match from auto-search)
+  const hasManualLocation = mapUrl && mapUrl.includes("google.com/maps");
+  const showLocationIcon = hasManualLocation || hasVerifiedLocation;
   
   return (
     <motion.div
@@ -92,25 +102,26 @@ const CompactRestaurantCard = ({
           </button>
         )}
 
-        {/* Always show map icon - opens Google Maps search */}
-        <button
-          onClick={e => {
-            e.stopPropagation();
-            if (onMapClick) {
-              onMapClick();
-            } else if (mapUrl) {
-              const url = mapUrl.startsWith('http') ? mapUrl : `https://${mapUrl}`;
-              window.open(url, '_blank', 'noopener,noreferrer');
-            } else {
-              // Open Google Maps with restaurant name search
-              const searchQuery = encodeURIComponent(name);
-              window.open(`https://www.google.com/maps/search/?api=1&query=${searchQuery}`, '_blank', 'noopener,noreferrer');
-            }
-          }}
-          className="w-8 h-8 flex items-center justify-center rounded-full bg-primary/10 hover:bg-primary/20 transition-colors pt-0.5"
-        >
-          <MapPin className="w-4 h-4 text-primary py-0 px-0 mb-[4px]" />
-        </button>
+        {/* Map icon - ONLY show if verified location exists */}
+        {showLocationIcon ? (
+          <button
+            onClick={e => {
+              e.stopPropagation();
+              if (onMapClick) {
+                onMapClick();
+              } else if (mapUrl) {
+                const url = mapUrl.startsWith('http') ? mapUrl : `https://${mapUrl}`;
+                window.open(url, '_blank', 'noopener,noreferrer');
+              }
+            }}
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-primary/10 hover:bg-primary/20 transition-colors pt-0.5"
+          >
+            <MapPin className="w-4 h-4 text-primary py-0 px-0 mb-[4px]" />
+          </button>
+        ) : (
+          // Empty placeholder to maintain layout
+          <div className="w-8 h-8" />
+        )}
       </div>
 
       {/* Content: Name, Cuisine, Distance, Delivery Apps */}
@@ -121,16 +132,12 @@ const CompactRestaurantCard = ({
         <div className="flex items-center gap-2 mb-2 flex-row-reverse justify-end">
           {cuisine && <p className="text-xs text-muted-foreground">{cuisine}</p>}
           
-          {/* Distance Display */}
-          {distance ? (
+          {/* Distance Display - ONLY show if verified location */}
+          {distance && showLocationIcon ? (
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Navigation className="w-3 h-3" />
               <span>{distance}</span>
             </div>
-          ) : !locationAvailable ? (
-            <span className="text-xs text-muted-foreground/60 italic">
-              {t("المسافة غير معروفة", "Distance unknown")}
-            </span>
           ) : null}
         </div>
 
