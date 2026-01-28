@@ -183,6 +183,7 @@ const Admin = () => {
 
   const [restaurantSearchQuery, setRestaurantSearchQuery] = useState("");
   const [restaurantCuisineFilter, setRestaurantCuisineFilter] = useState<string>("");
+  const [restaurantSortBy, setRestaurantSortBy] = useState<"date" | "clicks">("date");
 
   // Ad list filter state
   const [adSearchQuery, setAdSearchQuery] = useState("");
@@ -192,18 +193,26 @@ const Admin = () => {
   const [contactTypeFilter, setContactTypeFilter] = useState<string>("");
   const [contactStatusFilter, setContactStatusFilter] = useState<string>("");
 
-  // Filtered restaurants
-  const filteredRestaurants = restaurants.filter((restaurant) => {
-    const matchesSearch = restaurantSearchQuery === "" ||
-      restaurant.name.toLowerCase().includes(restaurantSearchQuery.toLowerCase()) ||
-      (restaurant.name_en && restaurant.name_en.toLowerCase().includes(restaurantSearchQuery.toLowerCase()));
+  // Filtered and sorted restaurants
+  const filteredRestaurants = restaurants
+    .filter((restaurant) => {
+      const matchesSearch = restaurantSearchQuery === "" ||
+        restaurant.name.toLowerCase().includes(restaurantSearchQuery.toLowerCase()) ||
+        (restaurant.name_en && restaurant.name_en.toLowerCase().includes(restaurantSearchQuery.toLowerCase()));
 
-    const matchesCuisine = restaurantCuisineFilter === "" ||
-      (restaurant.cuisines && restaurant.cuisines.includes(restaurantCuisineFilter)) ||
-      restaurant.cuisine === restaurantCuisineFilter;
+      const matchesCuisine = restaurantCuisineFilter === "" ||
+        (restaurant.cuisines && restaurant.cuisines.includes(restaurantCuisineFilter)) ||
+        restaurant.cuisine === restaurantCuisineFilter;
 
-    return matchesSearch && matchesCuisine;
-  });
+      return matchesSearch && matchesCuisine;
+    })
+    .sort((a, b) => {
+      if (restaurantSortBy === "clicks") {
+        return (restaurantInteractions[b.id] || 0) - (restaurantInteractions[a.id] || 0);
+      }
+      // Sort by date (newest first) - default
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
 
   // Filtered advertisements
   const filteredAdvertisements = advertisements.filter((ad) => {
@@ -1594,6 +1603,17 @@ const Admin = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                  {/* زر التبديل بين الترتيب */}
+                  <button
+                    onClick={() => setRestaurantSortBy(restaurantSortBy === "date" ? "clicks" : "date")}
+                    className={`inline-flex items-center justify-center gap-2 px-4 h-10 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                      restaurantSortBy === "clicks" 
+                        ? "bg-primary text-primary-foreground shadow-soft" 
+                        : "bg-card text-foreground border border-border"
+                    }`}
+                  >
+                    <span>{restaurantSortBy === "clicks" ? "👆 الأكثر نقرات" : "🕐 الأحدث"}</span>
+                  </button>
                 </div>
 
                 {isLoadingData ? (
