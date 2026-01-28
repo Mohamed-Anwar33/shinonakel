@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { APIProvider, Map as GoogleMap, AdvancedMarker } from "@vis.gl/react-google-maps";
 import { MapPin, Star, Loader2 } from "lucide-react";
-import { useSmartLocation } from "@/hooks/useSmartLocation";
 
 interface Branch {
   id: string;
@@ -23,35 +22,106 @@ interface GoogleMapViewProps {
   category: string;
 }
 
+// Cache for geocoded results
+const geocodeCache: Record<string, { lat: number; lng: number; mapsUrl: string } | null> = {};
+
+// Physical restaurant indicators - ONLY these types are allowed
+const PHYSICAL_LOCATION_TYPES = [
+  "restaurant",
+  "food",
+  "cafe",
+  "bakery",
+  "bar",
+  "meal_takeaway",
+];
+
 const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewProps) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const [allBranches, setAllBranches] = useState<Branch[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const { searchMultiple } = useSmartLocation();
   const searchInProgress = useRef(false);
 
   // Default center (Kuwait City)
   const defaultCenter = { lat: 29.3759, lng: 47.9774 };
 
+  // Geocode using Google Geocoding API (supports CORS)
+  const geocodeRestaurant = async (
+    restaurantNameEn: string
+  ): Promise<{ lat: number; lng: number; mapsUrl: string } | null> => {
+    const cacheKey = restaurantNameEn.toLowerCase().trim();
+    if (cacheKey in geocodeCache) {
+      return geocodeCache[cacheKey];
+    }
+
+    try {
+      const query = encodeURIComponent(`"${restaurantNameEn}" restaurant Kuwait`);
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${query}&key=${apiKey}&language=en&region=kw`
+      );
+
+      if (!response.ok) {
+        geocodeCache[cacheKey] = null;
+        return null;
+      }
+
+      const data = await response.json();
+
+      if (data.status === "OK" && data.results && data.results.length > 0) {
+        // Find food establishment result
+        const foodResult = data.results.find((result: any) => {
+          const types = result.types || [];
+          return types.some((t: string) => PHYSICAL_LOCATION_TYPES.includes(t));
+        });
+
+        if (!foodResult) {
+          console.log(`REJECTED ${restaurantNameEn}: Not a food establishment`);
+          geocodeCache[cacheKey] = null;
+          return null;
+        }
+
+        const location = foodResult.geometry.location;
+        
+        // Check Kuwait bounds
+        if (location.lat < 28.5 || location.lat > 30.1 || 
+            location.lng < 46.5 || location.lng > 48.5) {
+          console.log(`REJECTED ${restaurantNameEn}: Outside Kuwait`);
+          geocodeCache[cacheKey] = null;
+          return null;
+        }
+
+        const result = {
+          lat: location.lat,
+          lng: location.lng,
+          mapsUrl: `https://www.google.com/maps/place/?q=place_id:${foodResult.place_id}`,
+        };
+
+        console.log(`✓ FOUND ${restaurantNameEn} as restaurant`);
+        geocodeCache[cacheKey] = result;
+        return result;
+      }
+
+      geocodeCache[cacheKey] = null;
+      return null;
+    } catch (err) {
+      console.error("Geocode error for", restaurantNameEn, err);
+      geocodeCache[cacheKey] = null;
+      return null;
+    }
+  };
+
   // Build branches from database data
   useEffect(() => {
     const buildBranches = async () => {
-      if (searchInProgress.current) return;
+      if (searchInProgress.current || !apiKey) return;
       
       const manualBranches: Branch[] = [];
-      const restaurantsNeedingSearch: Array<{
-        id: string;
-        name_en: string | null;
-        hasManualLocation: boolean;
-        restaurantData: any;
-      }> = [];
+      const restaurantsNeedingSearch: any[] = [];
 
       // First pass: extract manual branches and identify restaurants needing search
       for (const restaurant of restaurants) {
         const hasManualMapsUrl = restaurant.mapsUrl && restaurant.mapsUrl.includes("google.com/maps");
         const hasManualCoords = restaurant.latitude != null && 
-                                restaurant.longitude != null && 
-                                !restaurant.isGeocoded;
+                                restaurant.longitude != null;
 
         if (hasManualMapsUrl || hasManualCoords) {
           // Restaurant has manual location from admin
@@ -70,52 +140,42 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
           });
         } else if (restaurant.name_en) {
           // Restaurant has English name - candidate for auto-search
-          restaurantsNeedingSearch.push({
-            id: restaurant.id,
-            name_en: restaurant.name_en,
-            hasManualLocation: false,
-            restaurantData: restaurant,
-          });
+          restaurantsNeedingSearch.push(restaurant);
         }
       }
 
       setAllBranches(manualBranches);
 
       // Second pass: auto-search for restaurants without manual location
-      if (restaurantsNeedingSearch.length > 0 && apiKey) {
+      if (restaurantsNeedingSearch.length > 0) {
         searchInProgress.current = true;
         setIsSearching(true);
 
         try {
-          const searchResults = await searchMultiple(
-            restaurantsNeedingSearch,
-            userLocation?.lat,
-            userLocation?.lng
-          );
-
           const autoBranches: Branch[] = [];
-          
-          searchResults.forEach((result, restaurantId) => {
-            const restaurantData = restaurantsNeedingSearch.find(r => r.id === restaurantId)?.restaurantData;
-            if (!restaurantData || !result.exactMatch) return;
 
-            // Add all found branches as separate markers
-            result.branches.forEach((branch, index) => {
+          for (const restaurant of restaurantsNeedingSearch) {
+            const result = await geocodeRestaurant(restaurant.name_en);
+            
+            if (result) {
               autoBranches.push({
-                id: `${restaurantId}-auto-${index}`,
-                lat: branch.lat,
-                lng: branch.lng,
-                restaurantId: restaurantId,
-                restaurantName: restaurantData.name,
-                restaurantImage: restaurantData.image || restaurantData.image_url,
-                cuisine: restaurantData.cuisine,
-                rating: restaurantData.rating || null,
-                mapsUrl: branch.mapsUrl,
-                address: branch.address,
+                id: `${restaurant.id}-auto`,
+                lat: result.lat,
+                lng: result.lng,
+                restaurantId: restaurant.id,
+                restaurantName: restaurant.name,
+                restaurantImage: restaurant.image || restaurant.image_url,
+                cuisine: restaurant.cuisine,
+                rating: restaurant.rating || null,
+                mapsUrl: result.mapsUrl,
+                address: "",
                 isManual: false,
               });
-            });
-          });
+            }
+
+            // Rate limiting
+            await new Promise(resolve => setTimeout(resolve, 150));
+          }
 
           setAllBranches(prev => [...prev, ...autoBranches]);
         } catch (error) {
@@ -128,7 +188,7 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
     };
 
     buildBranches();
-  }, [restaurants, userLocation, apiKey, searchMultiple]);
+  }, [restaurants, apiKey]);
 
   // Handle marker click - open Google Maps directly
   const handleMarkerClick = (branch: Branch) => {
