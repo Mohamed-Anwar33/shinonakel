@@ -16,100 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useGeolocation, calculateDistance } from "@/hooks/useGeolocation";
 import { getDeliveryAppColor } from "@/lib/deliveryApps";
 
-// Cache for geocoded coordinates to avoid repeated API calls
-const geocodeCache = new Map<string, {
-  lat: number;
-  lon: number;
-  mapsUrl: string;
-  verified: boolean;
-} | null>();
-
-// Physical restaurant indicators - ONLY these types are allowed
-const PHYSICAL_LOCATION_TYPES = [
-  "restaurant",
-  "food",
-  "cafe",
-  "bakery",
-  "bar",
-  "meal_takeaway",
-];
-
-// Geocode a restaurant name using Google Geocoding API (for verified locations)
-const geocodeRestaurant = async (nameEn: string | null): Promise<{
-  lat: number;
-  lon: number;
-  mapsUrl: string;
-  verified: boolean;
-} | null> => {
-  if (!nameEn) return null;
-  
-  const cacheKey = nameEn.toLowerCase().trim();
-  if (geocodeCache.has(cacheKey)) {
-    return geocodeCache.get(cacheKey) || null;
-  }
-  
-  try {
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-    if (!apiKey) {
-      geocodeCache.set(cacheKey, null);
-      return null;
-    }
-    
-    const query = encodeURIComponent(`"${nameEn}" restaurant Kuwait`);
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?address=${query}&key=${apiKey}&language=en&region=kw`
-    );
-    
-    if (!response.ok) {
-      geocodeCache.set(cacheKey, null);
-      return null;
-    }
-    
-    const data = await response.json();
-    
-    if (data.status === "OK" && data.results && data.results.length > 0) {
-      // Find food establishment result (verified physical location)
-      const foodResult = data.results.find((result: any) => {
-        const types = result.types || [];
-        return types.some((t: string) => PHYSICAL_LOCATION_TYPES.includes(t));
-      });
-      
-      if (!foodResult) {
-        console.log(`❌ REJECTED ${nameEn}: Not a food establishment`);
-        geocodeCache.set(cacheKey, null);
-        return null;
-      }
-      
-      const location = foodResult.geometry.location;
-      
-      // Check Kuwait bounds
-      if (location.lat < 28.5 || location.lat > 30.1 || 
-          location.lng < 46.5 || location.lng > 48.5) {
-        console.log(`❌ REJECTED ${nameEn}: Outside Kuwait`);
-        geocodeCache.set(cacheKey, null);
-        return null;
-      }
-      
-      const result = {
-        lat: location.lat,
-        lon: location.lng,
-        mapsUrl: `https://www.google.com/maps/place/?q=place_id:${foodResult.place_id}`,
-        verified: true
-      };
-      
-      console.log(`✓ FOUND ${nameEn} as restaurant`);
-      geocodeCache.set(cacheKey, result);
-      return result;
-    }
-    
-    geocodeCache.set(cacheKey, null);
-    return null;
-  } catch (err) {
-    console.error("Geocoding error for", nameEn, err);
-    geocodeCache.set(cacheKey, null);
-    return null;
-  }
-};
+// NO AUTO-GEOCODING - Only manually-added locations are used
 interface Restaurant {
   id: string;
   name: string;
@@ -180,12 +87,7 @@ const Results = () => {
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string | null>(null);
   const [showRestaurantDetail, setShowRestaurantDetail] = useState(false);
   const [selectedRestaurantData, setSelectedRestaurantData] = useState<any>(null);
-  const [geocodedCoords, setGeocodedCoords] = useState<Map<string, {
-    lat: number;
-    lon: number;
-    mapsUrl: string;
-    verified: boolean;
-  }>>(new Map());
+  // REMOVED: No more auto-geocoding state needed
   const [pinnedAdRestaurantId, setPinnedAdRestaurantId] = useState<string | null>(null);
   const [pinnedAdId, setPinnedAdId] = useState<string | null>(null);
   const pinnedAdViewTracked = useRef(false);
@@ -208,7 +110,7 @@ const Results = () => {
       });
     }
   }, [locationError, filterNearby, t, toast]);
-  const geocodingInProgress = useRef(false);
+  // REMOVED: geocodingInProgress ref no longer needed
   useEffect(() => {
     fetchRestaurants();
     fetchCuisines();
@@ -364,32 +266,7 @@ const Results = () => {
     }
   }, [locationError, filterNearby, t, toast]);
 
-  // Geocode restaurants that don't have coordinates
-  useEffect(() => {
-    if (geocodingInProgress.current || restaurants.length === 0) return;
-    const restaurantsNeedingGeocode = restaurants.filter(r => {
-      const hasBranchCoords = r.branches?.some(b => b.latitude != null && b.longitude != null);
-      return !hasBranchCoords && !geocodedCoords.has(r.id);
-    });
-    if (restaurantsNeedingGeocode.length === 0) return;
-    geocodingInProgress.current = true;
-    const geocodeSequentially = async () => {
-      const newCoords = new Map(geocodedCoords);
-      for (const restaurant of restaurantsNeedingGeocode.slice(0, 5)) {
-        // Limit to 5 at a time
-        // Use English name for better geocoding with Google API
-        const result = await geocodeRestaurant(restaurant.name_en);
-        if (result) {
-          newCoords.set(restaurant.id, result);
-        }
-        // Google API rate limit: 150ms between requests
-        await new Promise(resolve => setTimeout(resolve, 150));
-      }
-      setGeocodedCoords(newCoords);
-      geocodingInProgress.current = false;
-    };
-    geocodeSequentially();
-  }, [restaurants, geocodedCoords]);
+  // REMOVED: No more auto-geocoding - only manually-added locations are used
   const transformedRestaurants = useMemo(() => {
     return restaurants.map((r, index) => {
       const ratings = r.ratings || [];
@@ -399,34 +276,28 @@ const Results = () => {
       const address = primaryBranch?.address || "";
       const manualMapsUrl = primaryBranch?.google_maps_url || null;
 
-      // SMART LOCATION LOGIC:
-      // Check for verified location from auto-search (Google API)
-      const geocoded = geocodedCoords.get(r.id);
-      const hasVerifiedAutoLocation = geocoded?.verified === true;
+      // STRICT LOCATION LOGIC:
+      // Only show location if admin manually added mapsUrl
       const hasManualLocation = manualMapsUrl && manualMapsUrl.includes("google.com/maps");
       
-      // Has verified location if either manual or auto-verified
-      const hasVerifiedLocation = hasManualLocation || hasVerifiedAutoLocation;
+      // Has verified location ONLY if manual
+      const hasVerifiedLocation = hasManualLocation;
       
-      // Determine which mapsUrl to use
-      const mapsUrl = manualMapsUrl || (hasVerifiedAutoLocation ? geocoded?.mapsUrl : null) || null;
+      // Only use manually-added mapsUrl
+      const mapsUrl = manualMapsUrl || null;
 
-      // Use database coords if available, otherwise use geocoded coords
-      let branchLat = primaryBranch?.latitude;
-      let branchLon = primaryBranch?.longitude;
-      if (branchLat == null || branchLon == null) {
-        if (geocoded) {
-          branchLat = geocoded.lat;
-          branchLon = geocoded.lon;
-        }
-      }
+      // Use database coords if available
+      const branchLat = primaryBranch?.latitude;
+      const branchLon = primaryBranch?.longitude;
       
-      // Only show distance if location is verified
+      // Only show distance if location is manually verified
       let distanceNum: number | null = null;
       let distanceText = "";
       if (hasVerifiedLocation && userLat != null && userLon != null && branchLat != null && branchLon != null) {
         distanceNum = calculateDistance(userLat, userLon, branchLat, branchLon);
         distanceText = `${distanceNum.toFixed(1)} ${t("كم", "km")}`;
+      } else if (locationPermissionDenied && hasVerifiedLocation) {
+        distanceText = t("المسافة غير معروفة", "Distance unknown");
       }
       
       return {
@@ -461,10 +332,10 @@ const Results = () => {
         branches: r.branches,
         address,
         mapsUrl,
-        hasVerifiedLocation // NEW: Pass verification status
+        hasVerifiedLocation // Only true if admin added mapsUrl
       };
     });
-  }, [restaurants, savedRestaurantIds, userLat, userLon, t, geocodedCoords, pinnedAdRestaurantId, pinnedAdId]);
+  }, [restaurants, savedRestaurantIds, userLat, userLon, t, locationPermissionDenied, pinnedAdRestaurantId, pinnedAdId]);
   // Fisher-Yates shuffle function
   const shuffleArray = useCallback(<T,>(array: T[]): T[] => {
     const shuffled = [...array];

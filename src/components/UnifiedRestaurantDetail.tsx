@@ -340,23 +340,23 @@ const UnifiedRestaurantDetail = ({
     }
   };
   const normalizePhone = (phone: string): string => phone.replace(/\s+/g, "");
+  // STRICT LOGIC: Phone icon only shows if admin added phone number
   const canCall = !!restaurant.phone?.trim();
   const handleCall = () => {
     if (!restaurant.phone) return;
     window.location.href = `tel:${normalizePhone(restaurant.phone)}`;
   };
+  
+  // STRICT LOGIC: Location icon only shows if admin added mapsUrl
+  const hasManualMapsUrl = restaurant.mapsUrl && restaurant.mapsUrl.includes("google.com/maps");
+  const canShowDirections = hasManualMapsUrl;
+  
   const handleDirections = () => {
+    if (!hasManualMapsUrl) return; // Only allow if manually added
     if (restaurant.mapsUrl) {
       openExternal(restaurant.mapsUrl);
-    } else if (restaurant.latitude && restaurant.longitude) {
-      openExternal(`https://www.google.com/maps/search/?api=1&query=${restaurant.latitude},${restaurant.longitude}`);
-    } else {
-      // استخدام اسم المطعم للبحث في Google Maps
-      const searchQuery = encodeURIComponent(restaurant.name);
-      openExternal(`https://www.google.com/maps/search/${searchQuery}`);
     }
   };
-  const canShowDirections = !!restaurant.name; // دائماً نعرض الأيقونة لأن لدينا اسم المطعم
 
   const handleDeliveryApp = (app: DeliveryApp) => {
     if (!app.url) return;
@@ -434,25 +434,36 @@ const UnifiedRestaurantDetail = ({
                       </div>
                     </div>
 
-                    {/* Action Icons Row */}
+                    {/* Action Icons Row - Only show icons if data exists */}
                     <div className="flex items-center gap-3 flex-wrap">
-                      {/* Phone */}
-                      <button onClick={handleCall} disabled={!canCall} className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${canCall ? "bg-primary/10 hover:bg-primary/20" : "bg-muted/50 opacity-50 cursor-not-allowed"}`}>
-                        <Phone className={`w-5 h-5 ${canCall ? "text-primary" : "text-muted-foreground"}`} />
-                      </button>
+                      {/* Phone - ONLY if admin added phone number */}
+                      {canCall && (
+                        <button onClick={handleCall} className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors bg-primary/10 hover:bg-primary/20">
+                          <Phone className="w-5 h-5 text-primary" />
+                        </button>
+                      )}
 
-                      {/* Directions */}
-                      <button onClick={handleDirections} disabled={!canShowDirections} className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${canShowDirections ? "bg-primary/10 hover:bg-primary/20" : "bg-muted/50 opacity-50 cursor-not-allowed"}`}>
-                        <MapPin className={`w-5 h-5 ${canShowDirections ? "text-primary" : "text-muted-foreground"}`} />
-                      </button>
+                      {/* Directions - ONLY if admin added mapsUrl */}
+                      {canShowDirections && (
+                        <button onClick={handleDirections} className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors bg-primary/10 hover:bg-primary/20">
+                          <MapPin className="w-5 h-5 text-primary" />
+                        </button>
+                      )}
 
-                      {/* Delivery Apps */}
-                      {deliveryApps.map(app => <button key={app.name} onClick={() => handleDeliveryApp(app)} disabled={!app.url} className={`inline-flex items-center justify-center px-4 h-10 rounded-xl text-sm font-semibold border-2 transition-all leading-none ${app.url ? "hover:scale-105 cursor-pointer bg-card" : "opacity-50 cursor-not-allowed bg-muted/50"}`} style={{
-                    borderColor: app.color,
-                    color: app.color
-                  }}>
+                      {/* Delivery Apps - ONLY show apps that have URLs */}
+                      {deliveryApps.filter(app => app.url).map(app => (
+                        <button 
+                          key={app.name} 
+                          onClick={() => handleDeliveryApp(app)} 
+                          className="inline-flex items-center justify-center px-4 h-10 rounded-xl text-sm font-semibold border-2 transition-all leading-none hover:scale-105 cursor-pointer bg-card" 
+                          style={{
+                            borderColor: app.color,
+                            color: app.color
+                          }}
+                        >
                           {app.name}
-                        </button>)}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
