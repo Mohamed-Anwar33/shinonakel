@@ -408,11 +408,13 @@ const Admin = () => {
   };
 
   // Extract coordinates from Google Maps URL via Edge Function
-  const extractCoordinatesFromUrl = async (mapsUrl: string, index: number) => {
+  const extractCoordinatesFromUrl = async (mapsUrl: string, index: number, isEditMode: boolean = false) => {
     if (!mapsUrl || !isValidGoogleMapsUrl(mapsUrl)) return;
 
+    const updateState = isEditMode ? setEditBranches : setBranches;
+
     // Set extracting state
-    setBranches(prev => {
+    updateState((prev: any) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], isExtracting: true, extractionError: undefined };
       return updated;
@@ -426,7 +428,7 @@ const Admin = () => {
       if (error) throw error;
 
       if (data.success && data.latitude && data.longitude) {
-        setBranches(prev => {
+        updateState((prev: any) => {
           const updated = [...prev];
           updated[index] = {
             ...updated[index],
@@ -442,7 +444,7 @@ const Admin = () => {
           description: `Lat: ${data.latitude.toFixed(6)}, Lng: ${data.longitude.toFixed(6)}`,
         });
       } else {
-        setBranches(prev => {
+        updateState((prev: any) => {
           const updated = [...prev];
           updated[index] = {
             ...updated[index],
@@ -454,7 +456,7 @@ const Admin = () => {
       }
     } catch (error: any) {
       console.error('Error extracting coordinates:', error);
-      setBranches(prev => {
+      updateState((prev: any) => {
         const updated = [...prev];
         updated[index] = {
           ...updated[index],
@@ -2545,20 +2547,22 @@ const Admin = () => {
                 <div key={index} className="p-3 border rounded-lg space-y-2 bg-muted/30">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">فرع {index + 1}</span>
-                    {editBranches.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveEditBranch(index)}
-                        className="text-destructive h-6 w-6 p-0"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {editBranches.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveEditBranch(index)}
+                          className="text-destructive h-6 w-6 p-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <div className="space-y-1">
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                       <Input
                         value={branch.mapsUrl}
                         onChange={(e) => handleEditBranchChange(index, "mapsUrl", e.target.value)}
@@ -2570,9 +2574,22 @@ const Admin = () => {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => window.open('https://www.google.com/maps', '_blank')}
+                        onClick={() => extractCoordinatesFromUrl(branch.mapsUrl || "", index, true)} // Pass true for isEditMode
+                        className="shrink-0"
+                        title="استخراج الإحداثيات الآن"
+                        disabled={!branch.mapsUrl}
                       >
-                        <MapPin className="w-4 h-4" />
+                        <MapPin className="w-4 h-4 ml-1" />
+                        استخراج
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open('https://www.google.com/maps', '_blank')}
+                        className="shrink-0"
+                      >
+                        <ExternalLink className="w-4 h-4" />
                       </Button>
                     </div>
                     {branch.mapsUrl && !isValidGoogleMapsUrl(branch.mapsUrl) && (
@@ -2580,9 +2597,31 @@ const Admin = () => {
                         ⚠️ الرابط غير صحيح - يجب أن يكون رابط Google Maps
                       </p>
                     )}
+
+                    {/* Manual Lat/Lng Inputs (Always Visible for Verification/Edit) */}
+                    <div className="grid grid-cols-2 gap-2 mt-2" dir="ltr">
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">Latitude</label>
+                        <Input
+                          placeholder="ex: 29.375"
+                          value={branch.latitude}
+                          onChange={(e) => handleEditBranchChange(index, "latitude", e.target.value)}
+                          className={!branch.latitude ? "border-amber-500 bg-amber-50/50" : ""}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">Longitude</label>
+                        <Input
+                          placeholder="ex: 47.977"
+                          value={branch.longitude}
+                          onChange={(e) => handleEditBranchChange(index, "longitude", e.target.value)}
+                          className={!branch.longitude ? "border-amber-500 bg-amber-50/50" : ""}
+                        />
+                      </div>
+                    </div>
                   </div>
                   <p className="text-xs text-muted-foreground text-right" dir="rtl">
-                    💡 أدخل رابط Google Maps للموقع
+                    💡 أدخل رابط Google Maps وسيتم استخراج الإحداثيات تلقائياً
                   </p>
                 </div>
               ))}

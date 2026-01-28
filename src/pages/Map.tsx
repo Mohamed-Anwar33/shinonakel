@@ -34,6 +34,7 @@ interface Restaurant {
   website?: string | null;
   deliveryApps?: DeliveryApp[];
   hasManualLocation?: boolean; // True if admin added mapsUrl
+  branches?: any[];
 }
 
 // Haversine formula to calculate distance between two points
@@ -49,9 +50,9 @@ const calculateDistance = (
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
@@ -65,7 +66,7 @@ interface Cuisine {
 const Map = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { language, t } = useLanguage();
-  
+
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -116,10 +117,10 @@ const Map = () => {
   // Helper: Check if a URL is a valid Google Maps URL
   const isValidMapsUrl = (url: string | null): boolean => {
     if (!url) return false;
-    return url.includes("google.com/maps") || 
-           url.includes("maps.app.goo.gl") || 
-           url.includes("maps.google.com") ||
-           url.includes("goo.gl/maps");
+    return url.includes("google.com/maps") ||
+      url.includes("maps.app.goo.gl") ||
+      url.includes("maps.google.com") ||
+      url.includes("goo.gl/maps");
   };
 
   const fetchRestaurants = async () => {
@@ -147,27 +148,27 @@ const Map = () => {
       // Map restaurants with MULTI-BRANCH logic - find nearest branch
       const mappedRestaurants: Restaurant[] = (restaurantsData || []).map((restaurant, index) => {
         // Get all branches with valid manual Google Maps URLs
-        const branchesWithManualLocation = (restaurant.branches || []).filter((b: any) => 
+        const branchesWithManualLocation = (restaurant.branches || []).filter((b: any) =>
           isValidMapsUrl(b.google_maps_url)
         );
-        
+
         // Check if restaurant has any manual location
         const hasManualLocation = branchesWithManualLocation.length > 0;
-        
+
         // MULTI-BRANCH LOGIC: Find the nearest branch if user location is available
         let nearestBranch = branchesWithManualLocation[0] || null;
         let distanceText = "";
         let distanceNum: number | undefined;
-        
+
         if (hasManualLocation && userLocation) {
           let minDistance = Infinity;
-          
+
           for (const branch of branchesWithManualLocation) {
             if (branch.latitude != null && branch.longitude != null) {
               const dist = calculateDistance(
-                userLocation.lat, 
-                userLocation.lng, 
-                Number(branch.latitude), 
+                userLocation.lat,
+                userLocation.lng,
+                Number(branch.latitude),
                 Number(branch.longitude)
               );
               if (dist < minDistance) {
@@ -177,19 +178,19 @@ const Map = () => {
               }
             }
           }
-          
+
           // Format distance text only if we found a valid distance
           if (distanceNum !== undefined) {
             distanceText = distanceNum < 1 ? `${Math.round(distanceNum * 1000)} م` : `${distanceNum.toFixed(1)} كم`;
           }
         }
         // NOTE: If no user location, distanceText stays empty (no display)
-        
+
         // Use nearest branch's data
         const lat = nearestBranch?.latitude ? Number(nearestBranch.latitude) : null;
         const lng = nearestBranch?.longitude ? Number(nearestBranch.longitude) : null;
         const mapsUrl = nearestBranch?.google_maps_url || null;
-        
+
         return {
           id: restaurant.id,
           name: restaurant.name,
@@ -211,6 +212,7 @@ const Map = () => {
             url: app.app_url,
           })) || [],
           hasManualLocation: hasManualLocation,
+          branches: restaurant.branches, // Pass ALL branches to the map view
         };
       });
 
@@ -275,7 +277,7 @@ const Map = () => {
     setSearchParams(searchParams);
   };
 
-  const displayCategory = language === "en" 
+  const displayCategory = language === "en"
     ? cuisines.find(c => c.name === categoryFilter)?.name_en || categoryFilter
     : categoryFilter;
 
@@ -292,7 +294,7 @@ const Map = () => {
               {t("خريطة المطاعم", "Restaurants Map")}
             </h1>
           </div>
-          
+
           {/* Active Filter Badge */}
           {categoryFilter !== "الكل" && (
             <Button
@@ -312,19 +314,18 @@ const Map = () => {
         <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide mb-4">
           {cuisines.map((cuisine) => {
             const isActive = categoryFilter === cuisine.name;
-            const displayName = language === "en" && cuisine.name_en 
-              ? cuisine.name_en 
+            const displayName = language === "en" && cuisine.name_en
+              ? cuisine.name_en
               : cuisine.name;
-              
+
             return (
               <button
                 key={cuisine.name}
                 onClick={() => handleCategoryChange(cuisine.name, cuisine.emoji)}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                  isActive
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${isActive
                     ? "bg-primary text-primary-foreground shadow-soft"
                     : "bg-card text-foreground border border-border hover:border-primary/50"
-                }`}
+                  }`}
               >
                 <span>{cuisine.emoji}</span>
                 <span>{displayName}</span>
