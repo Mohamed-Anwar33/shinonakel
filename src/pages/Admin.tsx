@@ -112,6 +112,7 @@ const Admin = () => {
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
   const [contactRequests, setContactRequests] = useState<ContactRequest[]>([]);
+  const [restaurantInteractions, setRestaurantInteractions] = useState<Record<string, number>>({});
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Restaurant form state
@@ -251,12 +252,13 @@ const Admin = () => {
   const fetchData = async () => {
     setIsLoadingData(true);
     try {
-      const [restaurantsRes, adsRes, adminsRes, cuisinesRes, contactRes] = await Promise.all([
+      const [restaurantsRes, adsRes, adminsRes, cuisinesRes, contactRes, interactionsRes] = await Promise.all([
         supabase.from("restaurants").select("*").order("created_at", { ascending: false }),
         supabase.from("advertisements").select("*, restaurant:restaurants(*)").order("created_at", { ascending: false }),
         supabase.from("user_roles").select("*, profile:profiles(username, full_name)").order("created_at", { ascending: false }),
         supabase.from("cuisines").select("id, name, emoji").eq("is_active", true).order("sort_order", { ascending: true }),
         supabase.from("contact_requests").select("*").order("created_at", { ascending: false }),
+        supabase.from("restaurant_interactions").select("restaurant_id"),
       ]);
 
       if (restaurantsRes.data) setRestaurants(restaurantsRes.data);
@@ -275,6 +277,14 @@ const Admin = () => {
       }
       if (contactRes.data) {
         setContactRequests(contactRes.data as ContactRequest[]);
+      }
+      // حساب عدد التفاعلات لكل مطعم
+      if (interactionsRes.data) {
+        const counts: Record<string, number> = {};
+        interactionsRes.data.forEach((interaction: any) => {
+          counts[interaction.restaurant_id] = (counts[interaction.restaurant_id] || 0) + 1;
+        });
+        setRestaurantInteractions(counts);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -1625,6 +1635,13 @@ const Admin = () => {
                                 ? restaurant.cuisines.join(" • ")
                                 : restaurant.cuisine}
                             </p>
+                            {/* عدد النقرات */}
+                            <div className="flex items-center gap-1 mt-1">
+                              <Eye className="w-3 h-3 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">
+                                {restaurantInteractions[restaurant.id] || 0} نقرة
+                              </span>
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
