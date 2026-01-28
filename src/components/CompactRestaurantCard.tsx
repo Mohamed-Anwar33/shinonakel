@@ -56,7 +56,13 @@ const CompactRestaurantCard = ({
   // Show location icon ONLY if:
   // 1. mapUrl exists (admin manually added) OR
   // 2. hasVerifiedLocation is true (100% exact match from auto-search)
-  const hasManualLocation = mapUrl && mapUrl.includes("google.com/maps");
+  // Accept all Google Maps URL formats
+  const hasManualLocation = mapUrl && (
+    mapUrl.includes("google.com/maps") || 
+    mapUrl.includes("maps.app.goo.gl") || 
+    mapUrl.includes("maps.google.com") ||
+    mapUrl.includes("goo.gl/maps")
+  );
   const showLocationIcon = hasManualLocation || hasVerifiedLocation;
   
   return (

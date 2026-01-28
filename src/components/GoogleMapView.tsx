@@ -34,8 +34,13 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
 
     for (const restaurant of restaurants) {
       // STRICT: Only include if admin manually added mapsUrl
-      const hasManualMapsUrl = restaurant.mapsUrl && restaurant.mapsUrl.includes("google.com/maps");
-      
+      // Accept all Google Maps URL formats
+      const hasManualMapsUrl = restaurant.mapsUrl && (
+        restaurant.mapsUrl.includes("google.com/maps") || 
+        restaurant.mapsUrl.includes("maps.app.goo.gl") || 
+        restaurant.mapsUrl.includes("maps.google.com") ||
+        restaurant.mapsUrl.includes("goo.gl/maps")
+      );
       if (hasManualMapsUrl && restaurant.latitude != null && restaurant.longitude != null) {
         manualBranches.push({
           id: `${restaurant.id}-manual`,

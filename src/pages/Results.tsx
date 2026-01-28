@@ -278,7 +278,13 @@ const Results = () => {
 
       // STRICT LOCATION LOGIC:
       // Only show location if admin manually added mapsUrl
-      const hasManualLocation = manualMapsUrl && manualMapsUrl.includes("google.com/maps");
+      // Accept all Google Maps URL formats: google.com/maps, maps.app.goo.gl, maps.google.com, goo.gl/maps
+      const hasManualLocation = manualMapsUrl && (
+        manualMapsUrl.includes("google.com/maps") || 
+        manualMapsUrl.includes("maps.app.goo.gl") || 
+        manualMapsUrl.includes("maps.google.com") ||
+        manualMapsUrl.includes("goo.gl/maps")
+      );
       
       // Has verified location ONLY if manual
       const hasVerifiedLocation = hasManualLocation;

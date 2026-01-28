@@ -45,7 +45,13 @@ const RestaurantCard = ({
   // Show location icon ONLY if:
   // 1. mapsUrl exists (admin manually added) OR
   // 2. hasVerifiedLocation is true (100% exact match from auto-search)
-  const hasManualLocation = mapsUrl && mapsUrl.includes("google.com/maps");
+  // Accept all Google Maps URL formats
+  const hasManualLocation = mapsUrl && (
+    mapsUrl.includes("google.com/maps") || 
+    mapsUrl.includes("maps.app.goo.gl") || 
+    mapsUrl.includes("maps.google.com") ||
+    mapsUrl.includes("goo.gl/maps")
+  );
   const showLocationIcon = hasManualLocation || hasVerifiedLocation;
   
   const handleMapClick = (e: React.MouseEvent) => {
