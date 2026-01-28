@@ -25,6 +25,7 @@ interface Restaurant {
   image: string;
   rating: number;
   distance: string;
+  distanceNum?: number;
   cuisine: string;
   latitude: number | null;
   longitude: number | null;
@@ -35,6 +36,26 @@ interface Restaurant {
   deliveryApps?: DeliveryApp[];
   isGeocoded?: boolean;
 }
+
+// Haversine formula to calculate distance between two points
+const calculateDistance = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number => {
+  const R = 6371; // Earth's radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
 
 interface Cuisine {
   name: string;
@@ -121,6 +142,17 @@ const Map = () => {
       // Map restaurants - prioritize branch coordinates
       const mappedRestaurants: Restaurant[] = (restaurantsData || []).map((restaurant, index) => {
         const branch = restaurant.branches?.[0];
+        const lat = branch?.latitude ? Number(branch.latitude) : null;
+        const lng = branch?.longitude ? Number(branch.longitude) : null;
+        
+        // Calculate distance if user location and restaurant location available
+        let distanceText = "";
+        let distanceNum: number | undefined;
+        if (userLocation && lat && lng) {
+          const dist = calculateDistance(userLocation.lat, userLocation.lng, lat, lng);
+          distanceNum = dist;
+          distanceText = dist < 1 ? `${Math.round(dist * 1000)} م` : `${dist.toFixed(1)} كم`;
+        }
         
         return {
           id: restaurant.id,
@@ -128,10 +160,11 @@ const Map = () => {
           name_en: restaurant.name_en,
           image: restaurant.image_url || restaurant1,
           rating: ratingsResults[index]?.data || 0,
-          distance: "",
+          distance: distanceText,
+          distanceNum,
           cuisine: restaurant.cuisine,
-          latitude: branch?.latitude || null,
-          longitude: branch?.longitude || null,
+          latitude: lat,
+          longitude: lng,
           phone: restaurant.phone,
           address: branch?.address || null,
           mapsUrl: branch?.google_maps_url || null,
