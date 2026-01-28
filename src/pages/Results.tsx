@@ -118,8 +118,9 @@ const Results = () => {
     longitude: userLon,
     requestLocation,
     isLoading: isLoadingLocation,
-    error: locationError
-  } = useGeolocation();
+    error: locationError,
+    permissionDenied: locationPermissionDenied
+  } = useGeolocation(true); // Enable watchPosition for real-time updates
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [savedRestaurantIds, setSavedRestaurantIds] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
@@ -837,7 +838,7 @@ const Results = () => {
               }} transition={{
                 delay: index * 0.05
               }}>
-                          <CompactRestaurantCard name={language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name} cuisine={`${getCuisineDisplay(restaurant.cuisine).emoji} ${getCuisineDisplay(restaurant.cuisine).name}`} image={restaurant.image} rating={restaurant.rating} distance={restaurant.distance} deliveryApps={restaurant.deliveryApps} isFavorite={savedRestaurantIds.includes(restaurant.name)} onFavoriteClick={() => toggleFavorite(restaurant)} onMapClick={() => handleMapClick(restaurant)} onClick={() => handleRestaurantClick(restaurant)} onDeliveryAppClick={(app) => handleDeliveryAppClick(restaurant, app)} isSponsored={restaurant.isSponsored} />
+                          <CompactRestaurantCard name={language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name} cuisine={`${getCuisineDisplay(restaurant.cuisine).emoji} ${getCuisineDisplay(restaurant.cuisine).name}`} image={restaurant.image} rating={restaurant.rating} distance={restaurant.distance} deliveryApps={restaurant.deliveryApps} isFavorite={savedRestaurantIds.includes(restaurant.name)} onFavoriteClick={() => toggleFavorite(restaurant)} onMapClick={() => handleMapClick(restaurant)} onClick={() => handleRestaurantClick(restaurant)} onDeliveryAppClick={(app) => handleDeliveryAppClick(restaurant, app)} isSponsored={restaurant.isSponsored} locationAvailable={!locationPermissionDenied && (userLat !== null && userLon !== null)} />
                         </motion.div>)}
                     </div>
                     
