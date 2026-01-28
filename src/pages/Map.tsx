@@ -144,7 +144,13 @@ const Map = () => {
         const mapsUrl = branch?.google_maps_url || null;
         
         // Check if has manual location (admin added mapsUrl)
-        const hasManualLocation = mapsUrl && mapsUrl.includes("google.com/maps");
+        // Accept all Google Maps URL formats
+        const hasManualLocation = mapsUrl && (
+          mapsUrl.includes("google.com/maps") ||
+          mapsUrl.includes("maps.app.goo.gl") ||
+          mapsUrl.includes("maps.google.com") ||
+          mapsUrl.includes("goo.gl/maps")
+        );
         
         // Calculate distance if user location and restaurant location available
         let distanceText = "";
