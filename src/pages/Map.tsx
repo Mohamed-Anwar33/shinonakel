@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { MapPin, Loader2, Filter, X } from "lucide-react";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
-import LeafletMapView from "@/components/LeafletMapView";
+import GoogleMapView from "@/components/GoogleMapView";
 import { MapRestaurantSheet } from "@/components/MapRestaurantSheet";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -337,11 +337,10 @@ const Map = () => {
           </div>
         ) : (
           <div className="h-[calc(100vh-280px)] min-h-[400px] relative">
-            <LeafletMapView
+            <GoogleMapView
               restaurants={restaurantsWithCoordinates}
               userLocation={userLocation}
-              onRestaurantClick={handleRestaurantClick}
-              enableClustering={true}
+              category={displayCategory}
             />
             
             {/* Geocoding Indicator */}
