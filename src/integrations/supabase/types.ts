@@ -370,6 +370,55 @@ export type Database = {
           },
         ]
       }
+      restaurant_interactions: {
+        Row: {
+          ad_id: string | null
+          created_at: string
+          id: string
+          interaction_type: string
+          restaurant_id: string
+          user_id: string | null
+        }
+        Insert: {
+          ad_id?: string | null
+          created_at?: string
+          id?: string
+          interaction_type: string
+          restaurant_id: string
+          user_id?: string | null
+        }
+        Update: {
+          ad_id?: string | null
+          created_at?: string
+          id?: string
+          interaction_type?: string
+          restaurant_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_interactions_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "advertisements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_interactions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_interactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurant_ratings: {
         Row: {
           comment: string | null
