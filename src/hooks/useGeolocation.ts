@@ -1,19 +1,23 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface GeolocationState {
   latitude: number | null;
   longitude: number | null;
   error: string | null;
   isLoading: boolean;
+  permissionDenied: boolean;
 }
 
-export const useGeolocation = () => {
+export const useGeolocation = (watchPosition: boolean = false) => {
   const [state, setState] = useState<GeolocationState>({
     latitude: null,
     longitude: null,
     error: null,
     isLoading: false,
+    permissionDenied: false,
   });
+  
+  const watchIdRef = useRef<number | null>(null);
 
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -34,13 +38,16 @@ export const useGeolocation = () => {
           longitude: position.coords.longitude,
           error: null,
           isLoading: false,
+          permissionDenied: false,
         });
       },
       (error) => {
         let errorMessage = "حدث خطأ في تحديد الموقع";
+        let permissionDenied = false;
         switch (error.code) {
           case error.PERMISSION_DENIED:
             errorMessage = "تم رفض إذن الموقع";
+            permissionDenied = true;
             break;
           case error.POSITION_UNAVAILABLE:
             errorMessage = "الموقع غير متاح";
@@ -53,6 +60,7 @@ export const useGeolocation = () => {
           ...prev,
           error: errorMessage,
           isLoading: false,
+          permissionDenied,
         }));
       },
       {
@@ -62,6 +70,61 @@ export const useGeolocation = () => {
       }
     );
   }, []);
+
+  // Watch position continuously for real-time updates
+  useEffect(() => {
+    if (!watchPosition || !navigator.geolocation) return;
+
+    // Initial request
+    requestLocation();
+
+    // Set up watcher for continuous updates
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (position) => {
+        setState({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          error: null,
+          isLoading: false,
+          permissionDenied: false,
+        });
+      },
+      (error) => {
+        let errorMessage = "حدث خطأ في تحديد الموقع";
+        let permissionDenied = false;
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = "تم رفض إذن الموقع";
+            permissionDenied = true;
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = "الموقع غير متاح";
+            break;
+          case error.TIMEOUT:
+            errorMessage = "انتهت مهلة طلب الموقع";
+            break;
+        }
+        setState(prev => ({
+          ...prev,
+          error: errorMessage,
+          isLoading: false,
+          permissionDenied,
+        }));
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 30000, // Cache for 30 seconds
+      }
+    );
+
+    // Cleanup watcher on unmount
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, [watchPosition, requestLocation]);
 
   return {
     ...state,
