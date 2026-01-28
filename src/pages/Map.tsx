@@ -113,6 +113,15 @@ const Map = () => {
     }
   };
 
+  // Helper: Check if a URL is a valid Google Maps URL
+  const isValidMapsUrl = (url: string | null): boolean => {
+    if (!url) return false;
+    return url.includes("google.com/maps") || 
+           url.includes("maps.app.goo.gl") || 
+           url.includes("maps.google.com") ||
+           url.includes("goo.gl/maps");
+  };
+
   const fetchRestaurants = async () => {
     setIsLoading(true);
     try {
@@ -135,31 +144,51 @@ const Map = () => {
       );
       const ratingsResults = await Promise.all(ratingsPromises);
 
-      // Map restaurants - prioritize branch coordinates
-      // SMART LOCATION: Only include restaurants with manual mapsUrl or coordinates
+      // Map restaurants with MULTI-BRANCH logic - find nearest branch
       const mappedRestaurants: Restaurant[] = (restaurantsData || []).map((restaurant, index) => {
-        const branch = restaurant.branches?.[0];
-        const lat = branch?.latitude ? Number(branch.latitude) : null;
-        const lng = branch?.longitude ? Number(branch.longitude) : null;
-        const mapsUrl = branch?.google_maps_url || null;
-        
-        // Check if has manual location (admin added mapsUrl)
-        // Accept all Google Maps URL formats
-        const hasManualLocation = mapsUrl && (
-          mapsUrl.includes("google.com/maps") ||
-          mapsUrl.includes("maps.app.goo.gl") ||
-          mapsUrl.includes("maps.google.com") ||
-          mapsUrl.includes("goo.gl/maps")
+        // Get all branches with valid manual Google Maps URLs
+        const branchesWithManualLocation = (restaurant.branches || []).filter((b: any) => 
+          isValidMapsUrl(b.google_maps_url)
         );
         
-        // Calculate distance if user location and restaurant location available
+        // Check if restaurant has any manual location
+        const hasManualLocation = branchesWithManualLocation.length > 0;
+        
+        // MULTI-BRANCH LOGIC: Find the nearest branch if user location is available
+        let nearestBranch = branchesWithManualLocation[0] || null;
         let distanceText = "";
         let distanceNum: number | undefined;
-        if (userLocation && lat && lng) {
-          const dist = calculateDistance(userLocation.lat, userLocation.lng, lat, lng);
-          distanceNum = dist;
-          distanceText = dist < 1 ? `${Math.round(dist * 1000)} م` : `${dist.toFixed(1)} كم`;
+        
+        if (hasManualLocation && userLocation) {
+          let minDistance = Infinity;
+          
+          for (const branch of branchesWithManualLocation) {
+            if (branch.latitude != null && branch.longitude != null) {
+              const dist = calculateDistance(
+                userLocation.lat, 
+                userLocation.lng, 
+                Number(branch.latitude), 
+                Number(branch.longitude)
+              );
+              if (dist < minDistance) {
+                minDistance = dist;
+                nearestBranch = branch;
+                distanceNum = dist;
+              }
+            }
+          }
+          
+          // Format distance text only if we found a valid distance
+          if (distanceNum !== undefined) {
+            distanceText = distanceNum < 1 ? `${Math.round(distanceNum * 1000)} م` : `${distanceNum.toFixed(1)} كم`;
+          }
         }
+        // NOTE: If no user location, distanceText stays empty (no display)
+        
+        // Use nearest branch's data
+        const lat = nearestBranch?.latitude ? Number(nearestBranch.latitude) : null;
+        const lng = nearestBranch?.longitude ? Number(nearestBranch.longitude) : null;
+        const mapsUrl = nearestBranch?.google_maps_url || null;
         
         return {
           id: restaurant.id,
@@ -173,15 +202,15 @@ const Map = () => {
           latitude: lat,
           longitude: lng,
           phone: restaurant.phone,
-          address: branch?.address || null,
-          mapsUrl: mapsUrl,
+          address: nearestBranch?.address || null,
+          mapsUrl: mapsUrl, // This is now the NEAREST branch's mapsUrl
           website: restaurant.website,
           deliveryApps: restaurant.delivery_apps?.map((app: any) => ({
             name: app.app_name,
             color: getDeliveryAppColor(app.app_name),
             url: app.app_url,
           })) || [],
-          hasManualLocation: hasManualLocation || false,
+          hasManualLocation: hasManualLocation,
         };
       });
 
