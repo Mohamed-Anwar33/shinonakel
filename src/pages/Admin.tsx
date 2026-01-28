@@ -32,6 +32,7 @@ interface Restaurant {
   website: string | null;
   image_url: string | null;
   created_at: string;
+  is_deleted?: boolean;
 }
 
 interface Branch {
@@ -59,6 +60,7 @@ interface Advertisement {
   is_active: boolean;
   views_count: number;
   clicks_count: number;
+  max_views?: number;
   restaurant?: Restaurant;
 }
 
@@ -78,6 +80,7 @@ import { DELIVERY_APPS } from "@/lib/deliveryApps";
 interface Cuisine {
   id: string;
   name: string;
+  name_en?: string;
   emoji: string;
 }
 
@@ -258,26 +261,41 @@ const Admin = () => {
   }, [isAdmin]);
 
 
-  const fetchData = async () => {
-    setIsLoadingData(true);
+  const fetchAdvertisements = async () => {
     try {
-      const [restaurantsRes, adsRes, adminsRes, cuisinesRes, contactRes, interactionsRes] = await Promise.all([
-        supabase.from("restaurants").select("*").order("created_at", { ascending: false }),
-        supabase.from("advertisements").select("*, restaurant:restaurants(*)").order("created_at", { ascending: false }),
-        supabase.from("user_roles").select("*, profile:profiles(username, full_name)").order("created_at", { ascending: false }),
-        supabase.from("cuisines").select("id, name, emoji").eq("is_active", true).order("sort_order", { ascending: true }),
-        supabase.from("contact_requests").select("*").order("created_at", { ascending: false }),
-        supabase.from("restaurant_interactions").select("restaurant_id"),
-      ]);
+      const { data, error } = await supabase
+        .from("advertisements")
+        .select("*, restaurant:restaurants(*)")
+        .order("created_at", { ascending: false });
 
-      if (restaurantsRes.data) setRestaurants(restaurantsRes.data);
-      if (adsRes.data) {
-        const processedAds = adsRes.data.map((ad: any) => ({
+      if (error) throw error;
+
+      if (data) {
+        const processedAds = data.map((ad: any) => ({
           ...ad,
           restaurant: ad.restaurant,
         }));
         setAdvertisements(processedAds);
       }
+    } catch (error) {
+      console.error("Error fetching advertisements:", error);
+    }
+  };
+
+  const fetchData = async () => {
+    setIsLoadingData(true);
+    try {
+      const [restaurantsRes, adminsRes, cuisinesRes, contactRes, interactionsRes] = await Promise.all([
+        supabase.from("restaurants").select("*").eq("is_deleted", false).order("created_at", { ascending: false }) as any,
+        supabase.from("user_roles").select("*, profile:profiles(username, full_name)").order("created_at", { ascending: false }) as any,
+        supabase.from("cuisines").select("id, name, name_en, emoji").eq("is_active", true).order("sort_order", { ascending: true }) as any,
+        supabase.from("contact_requests").select("*").order("created_at", { ascending: false }) as any,
+        supabase.from("restaurant_interactions").select("restaurant_id") as any,
+      ]);
+
+      if (restaurantsRes.data) setRestaurants(restaurantsRes.data);
+      // Ads are fetched separately for realtime support
+      await fetchAdvertisements();
       if (adminsRes.data) {
         setAdminUsers(adminsRes.data as any);
       }
@@ -301,6 +319,26 @@ const Admin = () => {
       setIsLoadingData(false);
     }
   };
+
+  // Realtime subscription for advertisements
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const channel = supabase
+      .channel("admin-ads-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "advertisements" },
+        () => {
+          fetchAdvertisements();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isAdmin]);
 
   const handleImageUpload = async (file: File) => {
     setIsUploadingImage(true);
@@ -370,7 +408,7 @@ const Admin = () => {
   // Extract coordinates from Google Maps URL via Edge Function
   const extractCoordinatesFromUrl = async (mapsUrl: string, index: number) => {
     if (!mapsUrl || !isValidGoogleMapsUrl(mapsUrl)) return;
-    
+
     // Set extracting state
     setBranches(prev => {
       const updated = [...prev];
@@ -388,9 +426,9 @@ const Admin = () => {
       if (data.success && data.latitude && data.longitude) {
         setBranches(prev => {
           const updated = [...prev];
-          updated[index] = { 
-            ...updated[index], 
-            latitude: data.latitude.toString(), 
+          updated[index] = {
+            ...updated[index],
+            latitude: data.latitude.toString(),
             longitude: data.longitude.toString(),
             isExtracting: false,
             extractionError: undefined
@@ -404,8 +442,8 @@ const Admin = () => {
       } else {
         setBranches(prev => {
           const updated = [...prev];
-          updated[index] = { 
-            ...updated[index], 
+          updated[index] = {
+            ...updated[index],
             isExtracting: false,
             extractionError: "لم يتم العثور على إحداثيات في الرابط"
           };
@@ -416,8 +454,8 @@ const Admin = () => {
       console.error('Error extracting coordinates:', error);
       setBranches(prev => {
         const updated = [...prev];
-        updated[index] = { 
-          ...updated[index], 
+        updated[index] = {
+          ...updated[index],
           isExtracting: false,
           extractionError: "حدث خطأ أثناء استخراج الإحداثيات"
         };
@@ -437,7 +475,7 @@ const Admin = () => {
       const timeoutId = setTimeout(() => {
         extractCoordinatesFromUrl(value, index);
       }, 800);
-      
+
       // Store timeout ID to clear it if user types again
       return () => clearTimeout(timeoutId);
     }
@@ -622,9 +660,27 @@ const Admin = () => {
       // Handle pinned ads based on type
       if (adPlacements.includes("pinned_ad")) {
         // Always add cuisine placement for pinned ads
+        // Always add cuisine placement for pinned ads
+        // Robust slug generation matching Results.tsx logic
+        let cuisineSlug = pinnedAdCuisine;
+        const selectedCuisineObj = cuisines.find(c => c.name === pinnedAdCuisine);
+
+        if (selectedCuisineObj) {
+          // Prefer name_en for the slug if available, otherwise fallback to Arabic name
+          const rawName = selectedCuisineObj.name_en || selectedCuisineObj.name;
+
+          // Normalize search-friendly slug: lowercase, replace non-alphanum with _, collapse _, trim
+          cuisineSlug = rawName
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_+|_+$/g, '');
+        }
+
         adsToInsert.push({
           restaurant_id: adRestaurantId,
-          placement: `pinned_ad_cuisine_${pinnedAdCuisine}`,
+          placement: `pinned_ad_cuisine_${cuisineSlug}`,
           start_date: format(adStartDate, "yyyy-MM-dd"),
           end_date: endDateValue,
           is_active: true,
@@ -769,7 +825,11 @@ const Admin = () => {
     if (!confirm("هل أنت متأكد من حذف هذا المطعم؟")) return;
 
     try {
-      const { error } = await supabase.from("restaurants").delete().eq("id", id);
+      const { error } = await supabase
+        .from("restaurants")
+        .update({ is_deleted: true })
+        .eq("id", id);
+
       if (error) throw error;
       toast({ title: "تم الحذف", description: "تم حذف المطعم بنجاح" });
       fetchData();
@@ -1575,11 +1635,23 @@ const Admin = () => {
                               type="button"
                               variant="outline"
                               size="sm"
+                              onClick={() => extractCoordinatesFromUrl(branch.mapsUrl || "", index)}
+                              className="shrink-0"
+                              title="استخراج الإحداثيات الآن"
+                              disabled={!branch.mapsUrl || branch.isExtracting}
+                            >
+                              <MapPin className="w-4 h-4 ml-1" />
+                              استخراج
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
                               onClick={() => window.open('https://www.google.com/maps', '_blank')}
                               className="shrink-0"
                               title="فتح Google Maps للبحث"
                             >
-                              <MapPin className="w-4 h-4" />
+                              <ExternalLink className="w-4 h-4" />
                             </Button>
                           </div>
                           {branch.mapsUrl && !isValidGoogleMapsUrl(branch.mapsUrl) && (
@@ -1589,23 +1661,44 @@ const Admin = () => {
                           )}
                           {/* Extraction Status */}
                           {branch.isExtracting && (
-                            <div className="flex items-center gap-2 text-xs text-primary text-right" dir="rtl">
-                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
-                              <span>جاري استخراج الإحداثيات...</span>
-                            </div>
-                          )}
-                          {branch.extractionError && (
-                            <p className="text-xs text-amber-600 text-right" dir="rtl">
-                              ⚠️ {branch.extractionError}
+                            <p className="text-xs text-muted-foreground text-right" dir="rtl">
+                              ⏳ جاري استخراج الإحداثيات...
                             </p>
                           )}
-                          {/* Show extracted coordinates */}
-                          {branch.latitude && branch.longitude && !branch.isExtracting && (
-                            <div className="flex items-center gap-2 text-xs text-green-600 text-right bg-green-50 p-2 rounded" dir="rtl">
-                              <CheckCircle className="w-3 h-3" />
-                              <span>✅ تم استخراج الإحداثيات: {parseFloat(branch.latitude).toFixed(6)}, {parseFloat(branch.longitude).toFixed(6)}</span>
-                            </div>
+                          {branch.extractionError && (
+                            <p className="text-xs text-destructive text-right" dir="rtl">
+                              ❌ {branch.extractionError}
+                            </p>
                           )}
+                          {(branch.latitude || branch.longitude) && !branch.isExtracting && !branch.extractionError && (
+                            <p className="text-xs text-green-600 text-right font-medium" dir="rtl">
+                              ✅ تم تحديد الموقع: {parseFloat(branch.latitude!).toFixed(4)}, {parseFloat(branch.longitude!).toFixed(4)}
+                            </p>
+                          )}
+
+                          {/* Manual Lat/Lng Inputs (Always Visible for Verification/Edit) */}
+                          <div className="grid grid-cols-2 gap-2 mt-2">
+                            <div className="space-y-1">
+                              <Label className="text-xs text-right block text-muted-foreground">خط العرض (Latitude)</Label>
+                              <Input
+                                placeholder="مثال: 29.3759"
+                                value={branch.latitude || ''}
+                                onChange={(e) => handleBranchChange(index, "latitude", e.target.value)}
+                                className="text-left text-xs h-8"
+                                dir="ltr"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-right block text-muted-foreground">خط الطول (Longitude)</Label>
+                              <Input
+                                placeholder="مثال: 47.9774"
+                                value={branch.longitude || ''}
+                                onChange={(e) => handleBranchChange(index, "longitude", e.target.value)}
+                                className="text-left text-xs h-8"
+                                dir="ltr"
+                              />
+                            </div>
+                          </div>
                         </div>
                         <p className="text-xs text-muted-foreground text-right" dir="rtl">
                           💡 أدخل رابط Google Maps وسيتم استخراج الإحداثيات تلقائياً
@@ -1695,11 +1788,10 @@ const Admin = () => {
                   {/* زر التبديل بين الترتيب */}
                   <button
                     onClick={() => setRestaurantSortBy(restaurantSortBy === "date" ? "clicks" : "date")}
-                    className={`inline-flex items-center justify-center gap-2 px-4 h-10 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                      restaurantSortBy === "clicks" 
-                        ? "bg-primary text-primary-foreground shadow-soft" 
-                        : "bg-card text-foreground border border-border"
-                    }`}
+                    className={`inline-flex items-center justify-center gap-2 px-4 h-10 rounded-full text-sm font-medium transition-all whitespace-nowrap ${restaurantSortBy === "clicks"
+                      ? "bg-primary text-primary-foreground shadow-soft"
+                      : "bg-card text-foreground border border-border"
+                      }`}
                   >
                     <span>{restaurantSortBy === "clicks" ? "👆 الأكثر نقرات" : "🕐 الأحدث"}</span>
                   </button>
@@ -2090,10 +2182,25 @@ const Admin = () => {
                           <div className="flex items-center gap-2 flex-row-reverse">
                             <h3 className="font-semibold">{ad.restaurant?.name || "مطعم محذوف"}</h3>
                             <Badge
-                              variant={ad.is_active ? "default" : "secondary"}
+                              variant={
+                                !ad.is_active
+                                  ? "secondary" // Stopped manually or automatically
+                                  : (ad.end_date && new Date(ad.end_date) < new Date(new Date().setHours(0, 0, 0, 0)))
+                                    ? "destructive" // Expired by date
+                                    : (ad.max_views && ad.views_count >= ad.max_views)
+                                      ? "destructive" // Views exhausted
+                                      : "default" // Active
+                              }
                               className="text-xs"
                             >
-                              {ad.is_active ? "نشط" : "متوقف"}
+                              {!ad.is_active
+                                ? "متوقف"
+                                : (ad.end_date && new Date(ad.end_date) < new Date(new Date().setHours(0, 0, 0, 0)))
+                                  ? "منتهي الصلاحية"
+                                  : (ad.max_views && ad.views_count >= ad.max_views)
+                                    ? "اكتملت المشاهدات"
+                                    : "نشط"
+                              }
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">

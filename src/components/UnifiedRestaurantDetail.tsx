@@ -49,6 +49,7 @@ interface UnifiedRestaurantDetailProps {
   ownerId?: string;
   isOwner?: boolean;
   onDeliveryAppClick?: (app: { name: string; color: string; url?: string | null }) => void;
+  onMapClick?: () => void;
 }
 const UnifiedRestaurantDetail = ({
   isOpen,
@@ -57,7 +58,8 @@ const UnifiedRestaurantDetail = ({
   ownerName,
   ownerId,
   isOwner = false,
-  onDeliveryAppClick
+  onDeliveryAppClick,
+  onMapClick
 }: UnifiedRestaurantDetailProps) => {
   const {
     user,
@@ -346,19 +348,27 @@ const UnifiedRestaurantDetail = ({
     if (!restaurant.phone) return;
     window.location.href = `tel:${normalizePhone(restaurant.phone)}`;
   };
-  
+
   // STRICT LOGIC: Location icon only shows if admin added mapsUrl
   // Accept all Google Maps URL formats
   const hasManualMapsUrl = restaurant.mapsUrl && (
-    restaurant.mapsUrl.includes("google.com/maps") || 
-    restaurant.mapsUrl.includes("maps.app.goo.gl") || 
+    restaurant.mapsUrl.includes("google.com/maps") ||
+    restaurant.mapsUrl.includes("maps.app.goo.gl") ||
     restaurant.mapsUrl.includes("maps.google.com") ||
     restaurant.mapsUrl.includes("goo.gl/maps")
   );
   const canShowDirections = hasManualMapsUrl;
-  
+
   const handleDirections = () => {
     if (!hasManualMapsUrl) return; // Only allow if manually added
+
+    // Hand off to parent for tracking + opening (if handler exists)
+    if (onMapClick) {
+      onMapClick();
+      return;
+    }
+
+    // Fallback: internal opening
     if (restaurant.mapsUrl) {
       openExternal(restaurant.mapsUrl);
     }
@@ -373,9 +383,9 @@ const UnifiedRestaurantDetail = ({
   };
   const avgRating = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) : restaurant.rating?.toFixed(1) || "0.0";
   return <>
-      <AnimatePresence>
-        {isOpen && <>
-            <motion.div initial={{
+    <AnimatePresence>
+      {isOpen && <>
+        <motion.div initial={{
           opacity: 0
         }} animate={{
           opacity: 1
@@ -383,7 +393,7 @@ const UnifiedRestaurantDetail = ({
           opacity: 0
         }} onClick={onClose} className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-50" />
 
-            <motion.div initial={{
+        <motion.div initial={{
           y: "100%"
         }} animate={{
           y: 0
@@ -394,88 +404,88 @@ const UnifiedRestaurantDetail = ({
           damping: 30,
           stiffness: 300
         }} className="fixed bottom-0 left-0 right-0 bg-card rounded-t-3xl z-50 max-h-[85vh] overflow-hidden" dir={language === "ar" ? "rtl" : "ltr"}>
-              <div className="flex justify-center pt-3 pb-2">
-                <div className="w-12 h-1.5 bg-muted rounded-full" />
-              </div>
+          <div className="flex justify-center pt-3 pb-2">
+            <div className="w-12 h-1.5 bg-muted rounded-full" />
+          </div>
 
-              <div className={`absolute top-4 ${language === "ar" ? "left-4" : "right-4"} flex items-center gap-2 z-10`}>
-                <button onClick={toggleFavorite} disabled={isLoadingFavorite} className="w-8 h-8 rounded-full bg-card/90 backdrop-blur-sm flex items-center justify-center transition-colors">
-                  <Heart className={`w-5 h-5 transition-colors ${isFavorite ? "fill-primary text-primary" : "text-muted-foreground hover:text-foreground"}`} />
-                </button>
+          <div className={`absolute top-4 ${language === "ar" ? "left-4" : "right-4"} flex items-center gap-2 z-10`}>
+            <button onClick={toggleFavorite} disabled={isLoadingFavorite} className="w-8 h-8 rounded-full bg-card/90 backdrop-blur-sm flex items-center justify-center transition-colors">
+              <Heart className={`w-5 h-5 transition-colors ${isFavorite ? "fill-primary text-primary" : "text-muted-foreground hover:text-foreground"}`} />
+            </button>
 
-                <button onClick={onClose} className="w-8 h-8 rounded-full bg-card/90 backdrop-blur-sm flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors text-center gap-0 mx-0 my-[15px] py-0">
-                  <X className="w-5 h-5 my-0 mx-0 py-0 px-0 mr-0 mb-[4px]" />
-                </button>
-              </div>
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-card/90 backdrop-blur-sm flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors text-center gap-0 mx-0 my-[15px] py-0">
+              <X className="w-5 h-5 my-0 mx-0 py-0 px-0 mr-0 mb-[4px]" />
+            </button>
+          </div>
 
-              <div className="overflow-y-auto max-h-[calc(85vh-40px)]">
-                {/* Image */}
-                <div className="relative h-60">
-                  {restaurant.image_url ? <img src={restaurant.image_url} alt={restaurant.name} className="w-full h-full object-cover" loading="eager" decoding="async" /> : <div className="w-full h-full bg-muted flex items-center justify-center">
-                      <span className="text-6xl">🍽️</span>
-                    </div>}
-                  {/* Subtle bottom fade for legibility (avoid washing out the whole image) */}
-                  <div className="pointer-events-none absolute left-0 right-0 bottom-0 h-28 bg-gradient-to-t from-card/90 via-card/20 to-transparent" />
-                </div>
+          <div className="overflow-y-auto max-h-[calc(85vh-40px)]">
+            {/* Image */}
+            <div className="relative h-60">
+              {restaurant.image_url ? <img src={restaurant.image_url} alt={restaurant.name} className="w-full h-full object-cover" loading="eager" decoding="async" /> : <div className="w-full h-full bg-muted flex items-center justify-center">
+                <span className="text-6xl">🍽️</span>
+              </div>}
+              {/* Subtle bottom fade for legibility (avoid washing out the whole image) */}
+              <div className="pointer-events-none absolute left-0 right-0 bottom-0 h-28 bg-gradient-to-t from-card/90 via-card/20 to-transparent" />
+            </div>
 
-                <div className="px-5 -mt-8 relative">
-                  {/* Info Card */}
-                  <div className="bg-card rounded-2xl p-5 shadow-elevated mb-5 overflow-visible">
-                    {/* Cuisine */}
-                    {restaurant.cuisine && <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-2">
-                        <span className="text-lg">{cuisineEmoji}</span>
-                        <span>{cuisineDisplay || restaurant.cuisine}</span>
-                      </div>}
+            <div className="px-5 -mt-8 relative">
+              {/* Info Card */}
+              <div className="bg-card rounded-2xl p-5 shadow-elevated mb-5 overflow-visible">
+                {/* Cuisine */}
+                {restaurant.cuisine && <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-2">
+                  <span className="text-lg">{cuisineEmoji}</span>
+                  <span>{cuisineDisplay || restaurant.cuisine}</span>
+                </div>}
 
-                    {/* Name and Rating */}
-                    <div className="flex items-start justify-between gap-3 mb-4">
-                      <div className="flex-1">
-                        <h2 className="text-xl font-bold">{restaurant.name}</h2>
-                        {ownerName && <p className="text-sm text-primary mt-1">{t(`من قائمة ${ownerName}`, `From ${ownerName}'s list`)}</p>}
-                      </div>
-
-                      <div className="flex items-center gap-1.5 bg-amber-100 rounded-xl shrink-0 py-[5px] px-[16px]">
-                        <span className="font-bold text-foreground text-base text-center font-mono">{avgRating}</span>
-                        <Star className="fill-amber-400 text-amber-400 py-0 w-[20px] h-[20px]" />
-                      </div>
-                    </div>
-
-                    {/* Action Icons Row - Only show icons if data exists */}
-                    <div className="flex items-center gap-3 flex-wrap">
-                      {/* Phone - ONLY if admin added phone number */}
-                      {canCall && (
-                        <button onClick={handleCall} className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors bg-primary/10 hover:bg-primary/20">
-                          <Phone className="w-5 h-5 text-primary" />
-                        </button>
-                      )}
-
-                      {/* Directions - ONLY if admin added mapsUrl */}
-                      {canShowDirections && (
-                        <button onClick={handleDirections} className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors bg-primary/10 hover:bg-primary/20">
-                          <MapPin className="w-5 h-5 text-primary" />
-                        </button>
-                      )}
-
-                      {/* Delivery Apps - ONLY show apps that have URLs */}
-                      {deliveryApps.filter(app => app.url).map(app => (
-                        <button 
-                          key={app.name} 
-                          onClick={() => handleDeliveryApp(app)} 
-                          className="inline-flex items-center justify-center px-4 h-10 rounded-xl text-sm font-semibold border-2 transition-all leading-none hover:scale-105 cursor-pointer bg-card" 
-                          style={{
-                            borderColor: app.color,
-                            color: app.color
-                          }}
-                        >
-                          {app.name}
-                        </button>
-                      ))}
-                    </div>
+                {/* Name and Rating */}
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className="flex-1">
+                    <h2 className="text-xl font-bold">{restaurant.name}</h2>
+                    {ownerName && <p className="text-sm text-primary mt-1">{t(`من قائمة ${ownerName}`, `From ${ownerName}'s list`)}</p>}
                   </div>
 
-                  {/* Add Rating Button - Show for everyone, but handle auth in action */}
-                  {restaurant.id && <div className="mb-5">
-                      {!showRatingForm ? <Button onClick={() => {
+                  <div className="flex items-center gap-1.5 bg-amber-100 rounded-xl shrink-0 py-[5px] px-[16px]">
+                    <span className="font-bold text-foreground text-base text-center font-mono">{avgRating}</span>
+                    <Star className="fill-amber-400 text-amber-400 py-0 w-[20px] h-[20px]" />
+                  </div>
+                </div>
+
+                {/* Action Icons Row - Only show icons if data exists */}
+                <div className="flex items-center gap-3 flex-wrap">
+                  {/* Phone - ONLY if admin added phone number */}
+                  {canCall && (
+                    <button onClick={handleCall} className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors bg-primary/10 hover:bg-primary/20">
+                      <Phone className="w-5 h-5 text-primary" />
+                    </button>
+                  )}
+
+                  {/* Directions - ONLY if admin added mapsUrl */}
+                  {canShowDirections && (
+                    <button onClick={handleDirections} className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors bg-primary/10 hover:bg-primary/20">
+                      <MapPin className="w-5 h-5 text-primary" />
+                    </button>
+                  )}
+
+                  {/* Delivery Apps - ONLY show apps that have URLs */}
+                  {deliveryApps.filter(app => app.url).map(app => (
+                    <button
+                      key={app.name}
+                      onClick={() => handleDeliveryApp(app)}
+                      className="inline-flex items-center justify-center px-4 h-10 rounded-xl text-sm font-semibold border-2 transition-all leading-none hover:scale-105 cursor-pointer bg-card"
+                      style={{
+                        borderColor: app.color,
+                        color: app.color
+                      }}
+                    >
+                      {app.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Add Rating Button - Show for everyone, but handle auth in action */}
+              {restaurant.id && <div className="mb-5">
+                {!showRatingForm ? <Button onClick={() => {
                   if (!user || isGuest) {
                     toast({
                       title: t("سجّل دخولك", "Sign in required"),
@@ -486,73 +496,73 @@ const UnifiedRestaurantDetail = ({
                   }
                   setShowRatingForm(true);
                 }} className="w-full" variant={existingUserRating ? "outline" : "default"}>
-                          <Star className={`w-4 h-4 ${language === "ar" ? "ml-2" : "mr-2"}`} />
-                          {existingUserRating ? t("تعديل تقييمك", "Edit your review") : t("أضف تقييمك", "Add your review")}
-                        </Button> : <div className="bg-muted/50 rounded-xl p-4 space-y-4">
-                          <h4 className="font-bold text-center">
-                            {existingUserRating ? t("تعديل تقييمك", "Edit your review") : t("أضف تقييمك", "Add your review")}
-                          </h4>
+                  <Star className={`w-4 h-4 ${language === "ar" ? "ml-2" : "mr-2"}`} />
+                  {existingUserRating ? t("تعديل تقييمك", "Edit your review") : t("أضف تقييمك", "Add your review")}
+                </Button> : <div className="bg-muted/50 rounded-xl p-4 space-y-4">
+                  <h4 className="font-bold text-center">
+                    {existingUserRating ? t("تعديل تقييمك", "Edit your review") : t("أضف تقييمك", "Add your review")}
+                  </h4>
 
-                          <div className="flex justify-center gap-2">
-                            {[1, 2, 3, 4, 5].map(star => <button key={star} onClick={() => setUserRating(star)} className="p-1 transition-transform hover:scale-110">
-                                <Star className={`w-8 h-8 ${star <= userRating ? "fill-amber-400 text-amber-400" : "text-muted-foreground"}`} />
-                              </button>)}
-                          </div>
+                  <div className="flex justify-center gap-2">
+                    {[1, 2, 3, 4, 5].map(star => <button key={star} onClick={() => setUserRating(star)} className="p-1 transition-transform hover:scale-110">
+                      <Star className={`w-8 h-8 ${star <= userRating ? "fill-amber-400 text-amber-400" : "text-muted-foreground"}`} />
+                    </button>)}
+                  </div>
 
-                          <Textarea placeholder={t("قيّم وشاركنا أطباقك المفضلة...", "Rate and share your favorite dishes...")} value={userComment} onChange={e => setUserComment(e.target.value)} className={language === "ar" ? "text-right" : "text-left"} rows={3} />
+                  <Textarea placeholder={t("قيّم وشاركنا أطباقك المفضلة...", "Rate and share your favorite dishes...")} value={userComment} onChange={e => setUserComment(e.target.value)} className={language === "ar" ? "text-right" : "text-left"} rows={3} />
 
-                          <div className="flex gap-2">
-                            <Button onClick={handleSubmitRating} disabled={isSubmitting || userRating === 0} className="flex-1">
-                              {isSubmitting ? t("جاري الحفظ...", "Saving...") : t("حفظ التقييم", "Save Review")}
-                            </Button>
-                            <Button variant="outline" onClick={() => setShowRatingForm(false)} disabled={isSubmitting}>
-                              {t("إلغاء", "Cancel")}
-                            </Button>
-                            {existingUserRating && <Button variant="destructive" onClick={handleDeleteRating} disabled={isSubmitting}>
-                                {t("حذف", "Delete")}
-                              </Button>}
-                          </div>
-                        </div>}
-                    </div>}
+                  <div className="flex gap-2">
+                    <Button onClick={handleSubmitRating} disabled={isSubmitting || userRating === 0} className="flex-1">
+                      {isSubmitting ? t("جاري الحفظ...", "Saving...") : t("حفظ التقييم", "Save Review")}
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowRatingForm(false)} disabled={isSubmitting}>
+                      {t("إلغاء", "Cancel")}
+                    </Button>
+                    {existingUserRating && <Button variant="destructive" onClick={handleDeleteRating} disabled={isSubmitting}>
+                      {t("حذف", "Delete")}
+                    </Button>}
+                  </div>
+                </div>}
+              </div>}
 
-                  {/* Reviews Section */}
-                  <div className="pb-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-bold">{t("التقييمات", "Reviews")}</h3>
-                      <span className="text-sm text-muted-foreground">{reviews.length} {t("تقييم", "reviews")}</span>
+              {/* Reviews Section */}
+              <div className="pb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold">{t("التقييمات", "Reviews")}</h3>
+                  <span className="text-sm text-muted-foreground">{reviews.length} {t("تقييم", "reviews")}</span>
+                </div>
+
+                {/* Rating Summary */}
+                <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-primary/10 to-primary/5 rounded-2xl mb-4">
+                  <div className="text-center">
+                    <p className="text-4xl font-bold text-primary">{avgRating}</p>
+                    <div className="flex items-center gap-0.5 mt-1 justify-center">
+                      {[1, 2, 3, 4, 5].map(star => <Star key={star} className={`w-4 h-4 ${star <= Math.round(Number(avgRating)) ? "fill-amber-400 text-amber-400" : "text-muted"}`} />)}
                     </div>
-
-                    {/* Rating Summary */}
-                    <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-primary/10 to-primary/5 rounded-2xl mb-4">
-                      <div className="text-center">
-                        <p className="text-4xl font-bold text-primary">{avgRating}</p>
-                        <div className="flex items-center gap-0.5 mt-1 justify-center">
-                          {[1, 2, 3, 4, 5].map(star => <Star key={star} className={`w-4 h-4 ${star <= Math.round(Number(avgRating)) ? "fill-amber-400 text-amber-400" : "text-muted"}`} />)}
-                        </div>
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        {[5, 4, 3, 2, 1].map(rating => {
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    {[5, 4, 3, 2, 1].map(rating => {
                       const count = reviews.filter(r => r.rating === rating).length;
                       const percentage = reviews.length > 0 ? count / reviews.length * 100 : 0;
                       return <div key={rating} className="flex items-center gap-2 flex-row-reverse">
-                              <span className="text-xs w-3">{rating}</span>
-                              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full bg-primary rounded-full transition-all" style={{
+                        <span className="text-xs w-3">{rating}</span>
+                        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-primary rounded-full transition-all" style={{
                             width: `${percentage}%`
                           }} />
-                              </div>
-                            </div>;
+                        </div>
+                      </div>;
                     })}
-                      </div>
-                    </div>
+                  </div>
+                </div>
 
-                    {/* Reviews List */}
-                    {isLoadingReviews ? <div className="text-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
-                      </div> : reviews.length === 0 ? <div className="text-center py-8 text-muted-foreground">
-                        {t("لا توجد تقييمات بعد. كن أول من يقيّم!", "No reviews yet. Be the first to review!")}
-                      </div> : <div className="space-y-4">
-                        {(() => {
+                {/* Reviews List */}
+                {isLoadingReviews ? <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+                </div> : reviews.length === 0 ? <div className="text-center py-8 text-muted-foreground">
+                  {t("لا توجد تقييمات بعد. كن أول من يقيّم!", "No reviews yet. Be the first to review!")}
+                </div> : <div className="space-y-4">
+                  {(() => {
                     // Sort reviews to show owner's review first
                     const sortedReviews = [...reviews].sort((a, b) => {
                       if (ownerId) {
@@ -572,56 +582,56 @@ const UnifiedRestaurantDetail = ({
                       }} transition={{
                         delay: index * 0.1
                       }} className={`p-4 rounded-xl ${isOwnerReview ? "bg-primary/10 border-2 border-primary/30" : "bg-muted/50"}`}>
-                                <div className="flex items-start gap-3 mb-2">
-                                  <Avatar className="w-10 h-10 cursor-pointer hover:ring-2 hover:ring-primary transition-all" onClick={() => {
+                        <div className="flex items-start gap-3 mb-2">
+                          <Avatar className="w-10 h-10 cursor-pointer hover:ring-2 hover:ring-primary transition-all" onClick={() => {
                             if (review.profile?.username) {
                               onClose();
                               navigate(`/user/${review.profile.username}`);
                             }
                           }}>
-                                    <AvatarImage src={review.profile?.avatar_url || undefined} />
-                                    <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                                      {review.profile?.username?.charAt(0).toUpperCase() || "U"}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <h4 className="font-medium cursor-pointer hover:text-primary transition-colors" onClick={() => {
+                            <AvatarImage src={review.profile?.avatar_url || undefined} />
+                            <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                              {review.profile?.username?.charAt(0).toUpperCase() || "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="font-medium cursor-pointer hover:text-primary transition-colors" onClick={() => {
                                 if (review.profile?.username) {
                                   onClose();
                                   navigate(`/user/${review.profile.username}`);
                                 }
                               }}>
-                                        {review.profile?.username || t("مستخدم", "User")}
-                                      </h4>
-                                      {isOwnerReview && <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
-                                          {t("صاحب القائمة", "List Owner")}
-                                        </span>}
-                                      <span className="text-xs text-muted-foreground">
-                                        {formatDistanceToNow(new Date(review.created_at), {
+                                {review.profile?.username || t("مستخدم", "User")}
+                              </h4>
+                              {isOwnerReview && <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                                {t("صاحب القائمة", "List Owner")}
+                              </span>}
+                              <span className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(new Date(review.created_at), {
                                   addSuffix: true,
                                   locale: language === "ar" ? ar : enUS
                                 })}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-0.5 mt-1">
-                                      {[1, 2, 3, 4, 5].map(star => <Star key={star} className={`w-3 h-3 ${star <= review.rating ? "fill-amber-400 text-amber-400" : "text-muted"}`} />)}
-                                    </div>
-                                  </div>
-                                </div>
-                                {review.comment && <p className="text-sm text-muted-foreground leading-relaxed">{review.comment}</p>}
-                              </motion.div>;
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-0.5 mt-1">
+                              {[1, 2, 3, 4, 5].map(star => <Star key={star} className={`w-3 h-3 ${star <= review.rating ? "fill-amber-400 text-amber-400" : "text-muted"}`} />)}
+                            </div>
+                          </div>
+                        </div>
+                        {review.comment && <p className="text-sm text-muted-foreground leading-relaxed">{review.comment}</p>}
+                      </motion.div>;
                     });
                   })()}
-                      </div>}
-                  </div>
-                </div>
+                </div>}
               </div>
-            </motion.div>
-          </>}
-      </AnimatePresence>
+            </div>
+          </div>
+        </motion.div>
+      </>}
+    </AnimatePresence>
 
-      <GuestSignInPrompt isOpen={showGuestPrompt} onClose={() => setShowGuestPrompt(false)} />
-    </>;
+    <GuestSignInPrompt isOpen={showGuestPrompt} onClose={() => setShowGuestPrompt(false)} />
+  </>;
 };
 export default UnifiedRestaurantDetail;

@@ -80,7 +80,7 @@ const Results = () => {
   const [savedRestaurantIds, setSavedRestaurantIds] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [filterNearby, setFilterNearby] = useState(false);
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
   const [showGuestPrompt, setShowGuestPrompt] = useState(false);
@@ -90,8 +90,9 @@ const Results = () => {
   // REMOVED: No more auto-geocoding state needed
   const [pinnedAdRestaurantId, setPinnedAdRestaurantId] = useState<string | null>(null);
   const [pinnedAdId, setPinnedAdId] = useState<string | null>(null);
-  const pinnedAdViewTracked = useRef(false);
-  
+  const pinnedAdViewTrackedRef = useRef<Set<string>>(new Set());
+  const pinnedCardRef = useRef<HTMLDivElement>(null);
+
   // State for pagination and shuffle
   const [visibleCount, setVisibleCount] = useState(10);
   const [shuffledOrder, setShuffledOrder] = useState<string[]>([]); // Stores restaurant IDs in shuffled order
@@ -138,7 +139,7 @@ const Results = () => {
           branches:restaurant_branches(*),
           delivery_apps:restaurant_delivery_apps(*),
           ratings:restaurant_ratings(*)
-        `).order("created_at", {
+        `).eq("is_deleted", false).order("created_at", {
         ascending: false
       });
       if (error) throw error;
@@ -149,98 +150,222 @@ const Results = () => {
       setIsLoading(false);
     }
   };
-  
+
+  // Unified Click Handler for Analytics & ROI
+  const handleUnifiedClick = async (
+    restaurant: any,
+    interactionType: string,
+    targetUrl?: string | null,
+    adId?: string
+  ) => {
+    // 1. Redirection (Immediate & Non-blocking)
+    if (targetUrl) {
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    }
+
+    // 2. Logging (Fire & Forget pattern)
+    try {
+      // A) Analytics Log
+      const interactionData = {
+        restaurant_id: restaurant.id,
+        interaction_type: interactionType,
+        user_id: user?.id || null,
+        ad_id: adId || null
+      };
+
+      // Use a non-blocking promise to ensure UI is responsive
+      // Note: Since we opened a new tab, this page remains active, so await is safe here.
+      // We prioritize the insert to ensure accurate stats.
+      const logPromise = supabase
+        .from("restaurant_interactions")
+        .insert(interactionData);
+
+      // B) Ad Credit Consumption (ROI)
+      let roiPromise = Promise.resolve();
+      if (adId) {
+        roiPromise = supabase.rpc("increment_ad_clicks", { ad_uuid: adId }) as any;
+      }
+
+      await Promise.all([logPromise, roiPromise]);
+
+    } catch (error) {
+      console.error("Error tracking click:", error);
+      // Do not show error to user as action was successful (tab opened)
+    }
+  };
+
   const fetchPinnedAd = async () => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      
-      // Determine which placements to look for based on category
-      const targetPlacements = category === "الكل" 
-        ? ["pinned_ad", "pinned_ad_all"] 
-        : ["pinned_ad", "pinned_ad_all", `pinned_ad_cuisine_${category}`];
-      
-      // جلب الإعلانات التي تستوفي الشروط:
-      // 1. is_active = true
-      // 2. start_date <= اليوم
-      // 3. views_count < max_views (رصيد مشاهدات متاح)
-      // 4. (end_date >= اليوم أو end_date = null للعقود المفتوحة)
+
+      // A) Determine placements
+      // Normalize category/cuisine usage to match DB storage
+      let cuisinePlacement = null;
+      if (category !== "الكل") {
+        const { data: cuisineData } = await supabase
+          .from("cuisines")
+          .select("name_en")
+          .eq("name", category)
+          .single();
+
+        if (cuisineData?.name_en) {
+          // Robust slug generation: replace non-alphanumeric with _, collapse _, lowercase
+          const slug = cuisineData.name_en
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_+|_+$/g, '');
+
+          cuisinePlacement = `pinned_ad_cuisine_${slug}`;
+        }
+      }
+
+      const globalPlacement = "pinned_ad_all";
+
+      // B) Query advertisements using strict eligibility filters
+      const targetPlacements = cuisinePlacement ? [cuisinePlacement, globalPlacement] : [globalPlacement];
+
       const { data: ads, error } = await supabase
         .from("advertisements")
         .select("restaurant_id, id, placement, views_count, max_views, end_date")
         .in("placement", targetPlacements)
         .eq("is_active", true)
         .lte("start_date", today);
-      
+
       if (error) throw error;
-      
-      // تصفية الإعلانات بناءً على منطق الاستهلاك المرن
-      const eligibleAds = (ads || []).filter(ad => {
-        // شرط الرصيد: views_count < max_views
-        const hasViewsRemaining = !ad.max_views || (ad.views_count || 0) < ad.max_views;
-        
-        // شرط التاريخ: 
-        // - العقد المكثف: end_date >= اليوم
-        // - العقد المفتوح: end_date = null (يظل نشطاً حتى نفاذ المشاهدات)
-        const isWithinDateRange = !ad.end_date || ad.end_date >= today;
-        
-        return hasViewsRemaining && isWithinDateRange;
+
+      // Filter candidates based on strict rules
+      const validAds = (ads || []).filter(ad => {
+        // Rule: views_count < max_views 
+        // Strict Eligibility: max_views MUST be defined and > 0 to be valid for this system
+        const hasViewsRemaining = ad.max_views && ad.max_views > 0 && (ad.views_count || 0) < ad.max_views;
+
+        // Rule: end_date >= today OR end_date IS NULL
+        const notExpiredByDate = !ad.end_date || ad.end_date >= today;
+
+        return hasViewsRemaining && notExpiredByDate;
       });
-      
-      if (eligibleAds.length > 0) {
-        // الأولوية للإعلان الخاص بالفئة
-        const cuisineAd = eligibleAds.find(ad => ad.placement === `pinned_ad_cuisine_${category}`);
-        
-        // إذا وُجد أكثر من إعلان، اختيار عشوائي
-        let selectedAd;
-        if (cuisineAd) {
-          selectedAd = cuisineAd;
-        } else {
-          // اختيار عشوائي من الإعلانات المتاحة
-          const randomIndex = Math.floor(Math.random() * eligibleAds.length);
-          selectedAd = eligibleAds[randomIndex];
-        }
-        
-        setPinnedAdRestaurantId(selectedAd.restaurant_id);
-        setPinnedAdId(selectedAd.id);
-        
-        // Track view if not already tracked
-        if (!pinnedAdViewTracked.current) {
-          pinnedAdViewTracked.current = true;
-          
-          // تسجيل التفاعل
-          await supabase.from("ad_interactions").insert({
-            ad_id: selectedAd.id,
-            interaction_type: "view",
-            user_id: user?.id || null
-          });
-          
-          // زيادة المشاهدات عبر RPC (تجاوز RLS)
-          await supabase.rpc("increment_ad_views", { ad_uuid: selectedAd.id });
-          
-          // التحقق من وصول المشاهدات للحد الأقصى وإلغاء التنشيط
-          const { data: currentAd } = await supabase
-            .from("advertisements")
-            .select("views_count, max_views")
-            .eq("id", selectedAd.id)
-            .single();
-          
-          if (currentAd && currentAd.max_views && (currentAd.views_count || 0) >= currentAd.max_views) {
-            // الإغلاق التلقائي عند نفاذ الرصيد
-            await supabase
-              .from("advertisements")
-              .update({ is_active: false })
-              .eq("id", selectedAd.id);
-          }
-        }
-      } else {
+
+      if (validAds.length === 0) {
         setPinnedAdRestaurantId(null);
         setPinnedAdId(null);
+        return;
       }
+
+      // C) Priority rule: Cuisine > Global
+      let candidates = validAds;
+      if (cuisinePlacement) {
+        const cuisineAds = validAds.filter(ad => ad.placement === cuisinePlacement);
+        if (cuisineAds.length > 0) {
+          candidates = cuisineAds;
+        } else {
+          candidates = validAds.filter(ad => ad.placement === globalPlacement);
+        }
+      }
+
+      if (candidates.length === 0) {
+        setPinnedAdRestaurantId(null);
+        setPinnedAdId(null);
+        return;
+      }
+
+      // D) Randomization
+      // Pick one at random per page load
+      const picked = candidates[Math.floor(Math.random() * candidates.length)];
+
+      // E) Immediate termination cleanup (Safety check)
+      if (picked.end_date && picked.end_date < today) {
+        await supabase.from("advertisements").update({ is_active: false }).eq("id", picked.id);
+        setPinnedAdRestaurantId(null);
+        setPinnedAdId(null);
+        return;
+      }
+
+      setPinnedAdRestaurantId(picked.restaurant_id);
+      setPinnedAdId(picked.id);
+
     } catch (error) {
       console.error("Error fetching pinned ad:", error);
     }
   };
-  
+
+  // 3) IntersectionObserver for impression tracking
+  useEffect(() => {
+    // Only proceed if ad ID exists AND the card is rendered (ref is current)
+    // Map View GUARD: Do not track impressions if in Map View
+    if (!pinnedAdId || !pinnedCardRef.current || viewMode !== "list") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(async (entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio > 0) {
+            // Ad is visible!
+            // Deduplication check
+            if (pinnedAdViewTrackedRef.current.has(pinnedAdId)) {
+              // Already tracked this ad ID this session
+              // We can stop observing this specific element since it's "done"
+              observer.unobserve(entry.target);
+              return;
+            }
+
+            // Add to Set immediately
+            pinnedAdViewTrackedRef.current.add(pinnedAdId);
+
+            // Stop observing immediately after successful first impression logic trigger
+            // to prevent repeated triggers during this mount
+            observer.unobserve(entry.target);
+
+            try {
+              // Insert into ad_interactions
+              await supabase.from("ad_interactions").insert({
+                ad_id: pinnedAdId,
+                interaction_type: "view",
+                user_id: user?.id || null
+              });
+
+              // Call RPC
+              await supabase.rpc("increment_ad_views", { ad_uuid: pinnedAdId });
+
+              // After RPC, fetch latest values to check termination
+              const { data: currentAd } = await supabase
+                .from("advertisements")
+                .select("views_count, max_views, end_date")
+                .eq("id", pinnedAdId)
+                .single();
+
+              if (currentAd) {
+                const today = new Date().toISOString().split('T')[0];
+
+                // Check Mode A (Time + Views) & Mode B (Views only)
+                const viewsExceeded = currentAd.max_views && (currentAd.views_count || 0) >= currentAd.max_views;
+                const dateExpired = currentAd.end_date && currentAd.end_date < today;
+
+                if (viewsExceeded || dateExpired) {
+                  await supabase
+                    .from("advertisements")
+                    .update({ is_active: false })
+                    .eq("id", pinnedAdId);
+                }
+              }
+            } catch (error) {
+              console.error("Error tracking pinned ad view:", error);
+            }
+          }
+        });
+      },
+      {
+        threshold: 0.5, // Trigger when 50% visible
+      }
+    );
+
+    observer.observe(pinnedCardRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [pinnedAdId, user, viewMode]); // Added viewMode dependency
+
   const fetchSavedRestaurants = async () => {
     try {
       const {
@@ -269,10 +394,10 @@ const Results = () => {
   // Helper: Check if a URL is a valid Google Maps URL
   const isValidMapsUrl = (url: string | null): boolean => {
     if (!url) return false;
-    return url.includes("google.com/maps") || 
-           url.includes("maps.app.goo.gl") || 
-           url.includes("maps.google.com") ||
-           url.includes("goo.gl/maps");
+    return url.includes("google.com/maps") ||
+      url.includes("maps.app.goo.gl") ||
+      url.includes("maps.google.com") ||
+      url.includes("goo.gl/maps");
   };
 
   // STRICT LOCATION LOGIC - Only admin-added data, with Multi-Branch support
@@ -281,24 +406,24 @@ const Results = () => {
       const ratings = r.ratings || [];
       const avgRating = ratings.length > 0 ? Number((ratings.reduce((sum, rating) => sum + rating.rating, 0) / ratings.length).toFixed(1)) : 0;
       const ratingCount = ratings.length;
-      
+
       // Get all branches with valid manual Google Maps URLs
-      const branchesWithManualLocation = (r.branches || []).filter(b => 
+      const branchesWithManualLocation = (r.branches || []).filter(b =>
         isValidMapsUrl(b.google_maps_url)
       );
-      
+
       // Check if restaurant has any manual location
       const hasManualLocation = branchesWithManualLocation.length > 0;
-      
+
       // MULTI-BRANCH LOGIC: Find the nearest branch if user location is available
       let nearestBranch = branchesWithManualLocation[0] || null;
       let distanceNum: number | null = null;
       let distanceText = "";
-      
+
       if (hasManualLocation && userLat != null && userLon != null) {
         // Calculate distance to all branches and find the nearest one
         let minDistance = Infinity;
-        
+
         for (const branch of branchesWithManualLocation) {
           if (branch.latitude != null && branch.longitude != null) {
             const dist = calculateDistance(userLat, userLon, branch.latitude, branch.longitude);
@@ -309,20 +434,20 @@ const Results = () => {
             }
           }
         }
-        
+
         // Format distance text only if we found a valid distance
         if (distanceNum !== null) {
           distanceText = `${distanceNum.toFixed(1)} ${t("كم", "km")}`;
         }
       }
       // NOTE: If location permission denied, distanceText stays empty (no display)
-      
+
       // Use nearest branch's data for display
       const address = nearestBranch?.address || "";
       const mapsUrl = nearestBranch?.google_maps_url || null;
       const branchLat = nearestBranch?.latitude || null;
       const branchLon = nearestBranch?.longitude || null;
-      
+
       return {
         id: r.id,
         name: r.name,
@@ -394,17 +519,17 @@ const Results = () => {
   useEffect(() => {
     if (currentShuffleKey !== shuffleKey.current && categoryFilteredRestaurants.length > 0) {
       shuffleKey.current = currentShuffleKey;
-      
+
       // Separate pinned ad from other restaurants
       const pinnedAd = categoryFilteredRestaurants.find(r => r.isSponsored);
       const otherRestaurants = categoryFilteredRestaurants.filter(r => !r.isSponsored);
-      
+
       // Shuffle only non-pinned restaurants
       const shuffledIds = shuffleArray(otherRestaurants).map(r => r.id);
-      
+
       // Pinned ad always first (if exists)
       const finalOrder = pinnedAd ? [pinnedAd.id, ...shuffledIds] : shuffledIds;
-      
+
       setShuffledOrder(finalOrder);
       setVisibleCount(10); // Reset to first 10 when filters change
     }
@@ -418,7 +543,7 @@ const Results = () => {
         // Pinned ad always comes first
         if (a.isSponsored && !b.isSponsored) return -1;
         if (!a.isSponsored && b.isSponsored) return 1;
-        
+
         const aDistance = a.distanceNum ?? Infinity;
         const bDistance = b.distanceNum ?? Infinity;
         if (aDistance !== bDistance) {
@@ -427,12 +552,12 @@ const Results = () => {
         return b.createdAt.getTime() - a.createdAt.getTime();
       });
     }
-    
+
     // Use shuffled order for random display
     if (shuffledOrder.length === 0) {
       return categoryFilteredRestaurants;
     }
-    
+
     // Sort by shuffled order
     const orderMap = new Map(shuffledOrder.map((id, index) => [id, index]));
     return [...categoryFilteredRestaurants].sort((a, b) => {
@@ -489,7 +614,7 @@ const Results = () => {
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 400);
     };
-    
+
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -551,46 +676,34 @@ const Results = () => {
       });
     }
   };
-  
-  // دالة معالجة النقر على روابط التوصيل أو الموقع الجغرافي
-  const handleRestaurantInteraction = async (restaurant: any, type: string, url?: string) => {
-    try {
-      // 1. تسجيل التفاعل في جدول الإحصائيات العام (interactions)
-      // هذا الجدول يجمع بيانات لجميع المطاعم (المعلن وغير المعلن)
-      await supabase.from("restaurant_interactions").insert({
-        restaurant_id: restaurant.id,
-        interaction_type: type, // مثال: 'talabat', 'deliveroo', 'location'
-        ad_id: restaurant.adId || null, // ربط بالاعلان فقط إذا كان المطعم معلناً حالياً
-        user_id: user?.id || null
-      });
 
-      // 2. تحديث عداد الإعلان فقط إذا كان المطعم يملك إعلاناً نشطاً
-      if (restaurant.adId) {
-        // زيادة عداد النقرات الخاص بالإعلان لغرض المحاسبة والإحصاء المالي
-        await supabase.rpc("increment_ad_clicks", { ad_uuid: restaurant.adId });
-      }
-
-      // 3. فتح الرابط الخارجي في نافذة جديدة
-      if (url) {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      }
-    } catch (error) {
-      console.error("Error logging interaction:", error);
-      // نفتح الرابط حتى في حال فشل التسجيل لضمان تجربة مستخدم سلسة
-      if (url) window.open(url, '_blank');
-    }
-  };
+  // REMOVED: handleRestaurantInteraction (replaced by handleUnifiedClick above)
 
   const handleDeliveryAppClick = async (restaurant: any, app: any) => {
-    await handleRestaurantInteraction(restaurant, app.name.toLowerCase(), app.url);
+    // Check if this restaurant is the currently displayed Pinned Ad to use the correct Ad ID
+    // Note: transformedRestaurants usually don't carry adId unless from fetchPinnedAd,
+    // but the `featuredRestaurant` DOES.
+    // If clicking from "More Restaurants", they shouldn't have adId unless they are "Most Popular" (not yet implemented fully in Results)
+    // or if `adId` is passed in the restaurant object.
+
+    // Logic: If restaurant object has adId, use it.
+    // If we are clicking the 'featuredRestaurant', it definitively has the pinned ad ID.
+    const effectiveAdId = restaurant.adId;
+
+    await handleUnifiedClick(
+      restaurant,
+      app.name.toLowerCase(),
+      app.url || app.app_url,
+      effectiveAdId
+    );
   };
-  
+
   const handleMapClick = (restaurant: any) => {
     // SMART LOCATION: Only navigate if location is verified
     if (!restaurant.hasVerifiedLocation) {
       return; // Don't open map for non-verified locations
     }
-    
+
     let url = '';
     if (restaurant.mapsUrl) {
       url = restaurant.mapsUrl;
@@ -599,17 +712,25 @@ const Results = () => {
     } else {
       return; // No valid location
     }
-    handleRestaurantInteraction(restaurant, 'location', url);
+
+    const effectiveAdId = restaurant.adId;
+
+    handleUnifiedClick(
+      restaurant,
+      'location',
+      url,
+      effectiveAdId
+    );
   };
 
   // Get featured restaurant - ONLY show if there's an active pinned ad
   // If no pinned ad exists, all restaurants appear in the "More" list equally
   const hasPinnedAd = pinnedAdRestaurantId !== null;
   const pinnedAdRestaurant = hasPinnedAd ? visibleRestaurants.find(r => r.isSponsored) : null;
-  
+
   // If there's a pinned ad, show it as featured; otherwise all go to moreRestaurants
   const featuredRestaurant = pinnedAdRestaurant;
-  const moreRestaurants = hasPinnedAd 
+  const moreRestaurants = hasPinnedAd
     ? visibleRestaurants.filter(r => r.id !== pinnedAdRestaurant?.id)
     : visibleRestaurants;
   const handleRestaurantClick = (restaurant: any) => {
@@ -632,49 +753,54 @@ const Results = () => {
     setShowRestaurantDetail(true);
   };
   return <div className="min-h-screen bg-gradient-to-b from-primary/10 via-background to-background pb-24" dir={language === "ar" ? "rtl" : "ltr"}>
-      {/* Header with Primary Color like Admin Panel */}
-      <header className="sticky top-0 z-40 bg-primary/95 backdrop-blur-sm shadow-md my-0 mx-0 px-px mb-px mr-0 pr-[12px] pb-0 pl-[7px]">
-        <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
-          <button onClick={() => navigate("/")} className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors">
-            {language === "ar" ? <ArrowRight className="w-5 h-5 text-white flex-shrink-0 border-none mx-0 mb-[2px]" /> : <ArrowLeft className="w-5 h-5 text-white flex-shrink-0" />}
-          </button>
+    {/* Header with Primary Color like Admin Panel */}
+    <header className="sticky top-0 z-40 bg-primary/95 backdrop-blur-sm shadow-md my-0 mx-0 px-px mb-px mr-0 pr-[12px] pb-0 pl-[7px]">
+      <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+        <button onClick={() => navigate("/")} className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors">
+          {language === "ar" ? <ArrowRight className="w-5 h-5 text-white flex-shrink-0 border-none mx-0 mb-[2px]" /> : <ArrowLeft className="w-5 h-5 text-white flex-shrink-0" />}
+        </button>
 
-          <h1 className="font-bold text-lg text-white text-center py-0 px-0 my-0 mx-0">{t("نتيجة الاختيار", "Choice Result")}</h1>
+        <h1 className="font-bold text-lg text-white text-center py-0 px-0 my-0 mx-0">{t("نتيجة الاختيار", "Choice Result")}</h1>
 
-          <ViewToggle view={viewMode} onChange={setViewMode} />
+        <ViewToggle view={viewMode} onChange={setViewMode} />
+      </div>
+    </header>
+
+    <main className="max-w-md mx-auto px-4 pt-6">
+
+
+      {/* Hero Emoji */}
+      <div className="text-center mb-6 pt-4">
+        {emojiParam ? <span className="text-6xl">{emojiParam}</span> : cuisines.length > 0 ? <span className="text-6xl">{getCuisineDisplay(category).emoji}</span> : <span className="text-6xl animate-pulse opacity-50">🍽️</span>}
+
+        {/* Cuisine Name Badge */}
+        <div className="mt-3">
+          <span className="inline-flex items-center justify-center px-6 py-2 bg-card border-2 border-border rounded-full text-lg font-bold shadow-soft">
+            {categoryDisplay}
+          </span>
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-md mx-auto px-4 pt-6">
+      {/* Filters - Hide in Map View */}
+      {viewMode === "list" && <div className="flex items-center gap-2 mb-8">
+        <button onClick={() => {
+          if (!userLat || !userLon) {
+            requestLocation();
+          }
+          setFilterNearby(!filterNearby);
+        }} className={`inline-flex items-center justify-center gap-2 px-4 h-10 rounded-full text-sm font-medium transition-all leading-none ${filterNearby ? "bg-primary text-primary-foreground shadow-soft" : "bg-card text-foreground border border-border"}`}>
+          <span>{t("الأقرب", "Nearby")}</span>
+          <span>📍</span>
+        </button>
+      </div>}
 
-
-        {/* Hero Emoji */}
-        <div className="text-center mb-6 pt-4">
-          {emojiParam ? <span className="text-6xl">{emojiParam}</span> : cuisines.length > 0 ? <span className="text-6xl">{getCuisineDisplay(category).emoji}</span> : <span className="text-6xl animate-pulse opacity-50">🍽️</span>}
-
-          {/* Cuisine Name Badge */}
-          <div className="mt-3">
-            <span className="inline-flex items-center justify-center px-6 py-2 bg-card border-2 border-border rounded-full text-lg font-bold shadow-soft">
-              {categoryDisplay}
-            </span>
-          </div>
-        </div>
-
-        {/* Filters - Hide in Map View */}
-        {viewMode === "list" && <div className="flex items-center gap-2 mb-8">
-            <button onClick={() => setFilterNearby(!filterNearby)} className={`inline-flex items-center justify-center gap-2 px-4 h-10 rounded-full text-sm font-medium transition-all leading-none ${filterNearby ? "bg-primary text-primary-foreground shadow-soft" : "bg-card text-foreground border border-border"}`}>
-              <span>{t("الأقرب", "Nearby")}</span>
-              <span>📍</span>
-            </button>
-          </div>}
-
-        {/* Results Content */}
-        {isLoading ? <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div> : visibleRestaurants.length === 0 ? <div className="text-center py-20">
-            <p className="text-muted-foreground">{t("لا توجد مطاعم متاحة حالياً", "No restaurants available currently")}</p>
-          </div> : <AnimatePresence mode="wait">
-            {viewMode === "map" ? <motion.div key="map" initial={{
+      {/* Results Content */}
+      {isLoading ? <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div> : visibleRestaurants.length === 0 ? <div className="text-center py-20">
+        <p className="text-muted-foreground">{t("لا توجد مطاعم متاحة حالياً", "No restaurants available currently")}</p>
+      </div> : <AnimatePresence mode="wait">
+        {viewMode === "map" ? <motion.div key="map" initial={{
           opacity: 0,
           scale: 0.95
         }} animate={{
@@ -684,115 +810,113 @@ const Results = () => {
           opacity: 0,
           scale: 0.95
         }}>
-                <GoogleMapView restaurants={filteredRestaurants} userLocation={userLat && userLon ? {
+          <GoogleMapView restaurants={filteredRestaurants} userLocation={userLat && userLon ? {
             lat: userLat,
             lng: userLon
           } : null} category={category} />
-              </motion.div> : <motion.div key="list" initial={{
+        </motion.div> : <motion.div key="list" initial={{
           opacity: 0
         }} animate={{
           opacity: 1
         }} exit={{
           opacity: 0
         }} className="space-y-6">
-                {/* Featured Restaurant - Inline Display */}
-                {featuredRestaurant && <motion.div initial={{
+          {/* Featured Restaurant - Inline Display */}
+          {featuredRestaurant && <motion.div ref={pinnedCardRef} initial={{
             opacity: 0,
             y: 20
           }} animate={{
             opacity: 1,
             y: 0
           }} className="relative">
-                    {/* Featured Image Card */}
-                    <div className="relative rounded-3xl overflow-hidden bg-gradient-to-b from-primary/20 to-primary/5 p-4">
-                      {/* Main Image */}
-                      <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-4">
-                        <img src={featuredRestaurant.image} alt={language === "en" && featuredRestaurant.name_en ? featuredRestaurant.name_en : featuredRestaurant.name} className="w-full h-full object-cover" />
+            {/* Featured Image Card */}
+            <div className="relative rounded-3xl overflow-hidden bg-gradient-to-b from-primary/20 to-primary/5 p-4">
+              {/* Main Image */}
+              <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-4">
+                <img src={featuredRestaurant.image} alt={language === "en" && featuredRestaurant.name_en ? featuredRestaurant.name_en : featuredRestaurant.name} className="w-full h-full object-cover" />
 
-                        {/* Ad Badge - Always show for pinned ad */}
-                        <div className="absolute top-3 right-3">
-                            <span className="inline-flex items-center justify-center bg-accent text-accent-foreground font-bold rounded-full shadow-soft py-[3px] px-[13px] text-center font-sans text-base">
-                              {t("إعلان مثبت", "Pinned Ad")}
-                            </span>
-                          </div>
+                {/* Ad Badge - Always show for pinned ad */}
+                <div className="absolute top-3 right-3">
+                  <span className="inline-flex items-center justify-center bg-accent text-accent-foreground font-bold rounded-full shadow-soft py-[3px] px-[13px] text-center font-sans text-base">
+                    {t("إعلان مثبت", "Pinned Ad")}
+                  </span>
+                </div>
 
-                        {/* Favorite Button - Inside Image */}
-                        <button onClick={e => {
+                {/* Favorite Button - Inside Image */}
+                <button onClick={e => {
                   e.stopPropagation();
                   toggleFavorite(featuredRestaurant);
                 }} className="absolute top-3 left-3 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-soft">
-                          <Heart className={`w-5 h-5 transition-colors ${savedRestaurantIds.includes(featuredRestaurant.name) ? "fill-primary text-primary" : "text-muted-foreground"}`} />
-                        </button>
+                  <Heart className={`w-5 h-5 transition-colors ${savedRestaurantIds.includes(featuredRestaurant.name) ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+                </button>
 
-                        {/* Rating Badge */}
-                        <div className="absolute bottom-3 left-3 inline-flex items-center justify-center gap-1 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-soft">
-                          <Star className="w-4 h-4 fill-accent text-accent" />
-                          <span className="text-sm font-bold leading-none pt-0.5 font-mono">{featuredRestaurant.rating.toFixed(1)}</span>
-                        </div>
-                      </div>
+                {/* Rating Badge */}
+                <div className="absolute bottom-3 left-3 inline-flex items-center justify-center gap-1 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-soft">
+                  <Star className="w-4 h-4 fill-accent text-accent" />
+                  <span className="text-sm font-bold leading-none pt-0.5 font-mono">{featuredRestaurant.rating.toFixed(1)}</span>
+                </div>
+              </div>
 
-                      {/* Restaurant Info Row - Name/Cuisine on Right, Actions on Left */}
-                      <div className="flex items-center justify-between gap-3 mb-4 bg-card rounded-2xl p-4 shadow-soft">
-                        {/* Right Side - Name & Cuisine */}
-                        <div className="flex-1">
-                          <h3 className="font-bold text-lg mb-0.5">
-                            {language === "en" && featuredRestaurant.name_en ? featuredRestaurant.name_en : featuredRestaurant.name}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {getCuisineDisplay(featuredRestaurant.cuisine).emoji} {getCuisineDisplay(featuredRestaurant.cuisine).name}
-                          </p>
-                        </div>
+              {/* Restaurant Info Row - Name/Cuisine on Right, Actions on Left */}
+              <div className="flex items-center justify-between gap-3 mb-4 bg-card rounded-2xl p-4 shadow-soft">
+                {/* Right Side - Name & Cuisine */}
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg mb-0.5">
+                    {language === "en" && featuredRestaurant.name_en ? featuredRestaurant.name_en : featuredRestaurant.name}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {getCuisineDisplay(featuredRestaurant.cuisine).emoji} {getCuisineDisplay(featuredRestaurant.cuisine).name}
+                  </p>
+                </div>
 
-                        {/* Left Side - Phone & Location Icons */}
-                        <div className="flex items-center gap-2">
-                          {/* Location - ONLY show if verified */}
-                          {featuredRestaurant.hasVerifiedLocation && (
-                            <button onClick={() => handleMapClick(featuredRestaurant)} className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
-                              <MapPin className="w-5 h-5 text-primary" />
-                            </button>
-                          )}
-                          {featuredRestaurant.phone && <a href={`tel:${featuredRestaurant.phone}`} className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
-                              <Phone className="w-5 h-5 text-primary" />
-                            </a>}
-                        </div>
-                      </div>
+                {/* Left Side - Phone & Location Icons */}
+                <div className="flex items-center gap-2">
+                  {/* Location - ONLY show if verified */}
+                  {featuredRestaurant.hasVerifiedLocation && (
+                    <button onClick={() => handleMapClick(featuredRestaurant)} className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
+                      <MapPin className="w-5 h-5 text-primary" />
+                    </button>
+                  )}
+                  {featuredRestaurant.phone && <a href={`tel:${featuredRestaurant.phone}`} className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Phone className="w-5 h-5 text-primary" />
+                  </a>}
+                </div>
+              </div>
 
-                      {/* Delivery Apps Section */}
-                      {featuredRestaurant.deliveryApps.length > 0 && <div className="bg-card rounded-2xl p-4 shadow-soft">
-                          <p className="text-xs text-muted-foreground text-center mb-3 font-bold">
-                            {t("اطلب الآن عبر التطبيقات", "Order now via apps")}
-                          </p>
-                          <div className="flex items-center justify-center gap-2 flex-wrap">
-                            {featuredRestaurant.deliveryApps.map(app => <button key={app.name} onClick={() => {
+              {/* Delivery Apps Section */}
+              {featuredRestaurant.deliveryApps.length > 0 && <div className="bg-card rounded-2xl p-4 shadow-soft">
+                <p className="text-xs text-muted-foreground text-center mb-3 font-bold">
+                  {t("اطلب الآن عبر التطبيقات", "Order now via apps")}
+                </p>
+                <div className="flex items-center justify-center gap-2 flex-wrap">
+                  {featuredRestaurant.deliveryApps.map(app => <button key={app.name} onClick={() => {
                     // Track click for sponsored restaurant (featured card)
                     handleDeliveryAppClick(featuredRestaurant, app);
-                    if (app.url) {
-                      window.open(app.url, '_blank', 'noopener,noreferrer');
-                    }
+                    // handleDeliveryAppClick now handles the opening via handleUnifiedClick
                   }} className="inline-flex items-center justify-center px-4 h-8 rounded-full text-sm font-extrabold border-2 bg-white transition-transform hover:scale-105 leading-none" style={{
                     borderColor: app.color,
                     color: app.color
                   }}>
-                                {app.name}
-                              </button>)}
-                          </div>
-                        </div>}
-                    </div>
-                  </motion.div>}
+                    {app.name}
+                  </button>)}
+                </div>
+              </div>}
+            </div>
+          </motion.div>}
 
-                {/* More Restaurants Section - Show title based on context */}
-                {moreRestaurants.length > 0 && <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-lg">
-                        {hasPinnedAd ? t("المزيد", "More") : t("المطاعم", "Restaurants")}
-                      </h3>
-                      <span className="text-sm text-muted-foreground">
-                        {hasPinnedAd ? filteredRestaurants.length - 1 : filteredRestaurants.length} {t("مطعم", "restaurants")}
-                      </span>
-                    </div>
+          {/* More Restaurants Section - Show title based on context */}
+          {moreRestaurants.length > 0 && <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-lg">
+                {hasPinnedAd ? t("المزيد", "More") : t("المطاعم", "Restaurants")}
+              </h3>
+              <span className="text-sm text-muted-foreground">
+                {hasPinnedAd ? filteredRestaurants.length - 1 : filteredRestaurants.length} {t("مطعم", "restaurants")}
+              </span>
+            </div>
 
-                    <div className="space-y-3">
-                      {moreRestaurants.map((restaurant, index) => <motion.div key={restaurant.id} initial={{
+            <div className="space-y-3">
+              {moreRestaurants.map((restaurant, index) => <motion.div key={restaurant.id} initial={{
                 opacity: 0,
                 y: 10
               }} animate={{
@@ -801,59 +925,61 @@ const Results = () => {
               }} transition={{
                 delay: index * 0.05
               }}>
-                          <CompactRestaurantCard name={language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name} cuisine={`${getCuisineDisplay(restaurant.cuisine).emoji} ${getCuisineDisplay(restaurant.cuisine).name}`} image={restaurant.image} rating={restaurant.rating} distance={restaurant.distance} deliveryApps={restaurant.deliveryApps} isFavorite={savedRestaurantIds.includes(restaurant.name)} onFavoriteClick={() => toggleFavorite(restaurant)} onMapClick={() => handleMapClick(restaurant)} onClick={() => handleRestaurantClick(restaurant)} onDeliveryAppClick={(app) => handleDeliveryAppClick(restaurant, app)} isSponsored={restaurant.isSponsored} locationAvailable={!locationPermissionDenied && (userLat !== null && userLon !== null)} hasVerifiedLocation={restaurant.hasVerifiedLocation} mapUrl={restaurant.mapsUrl} />
-                        </motion.div>)}
-                    </div>
-                    
-                    {/* Infinite Scroll Trigger & Loading Indicator */}
-                    <div ref={loadMoreRef} className="flex justify-center py-6">
-                      {isLoadingMore && (
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="flex items-center gap-2 text-muted-foreground"
-                        >
-                          <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                          <span className="text-sm">{t("جاري التحميل...", "Loading...")}</span>
-                        </motion.div>
-                      )}
-                      {!isLoadingMore && remainingCount > 0 && (
-                        <span className="text-xs text-muted-foreground">
-                          {remainingCount} {t("مطعم متبقي", "remaining")}
-                        </span>
-                      )}
-                    </div>
-                  </div>}
-              </motion.div>}
-          </AnimatePresence>}
-      </main>
+                <CompactRestaurantCard name={language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name} cuisine={`${getCuisineDisplay(restaurant.cuisine).emoji} ${getCuisineDisplay(restaurant.cuisine).name}`} image={restaurant.image} rating={restaurant.rating} distance={restaurant.distance} deliveryApps={restaurant.deliveryApps} isFavorite={savedRestaurantIds.includes(restaurant.name)} onFavoriteClick={() => toggleFavorite(restaurant)} onMapClick={() => handleMapClick(restaurant)} onClick={() => handleRestaurantClick(restaurant)} onDeliveryAppClick={(app) => handleDeliveryAppClick(restaurant, app)} isSponsored={restaurant.isSponsored} locationAvailable={!locationPermissionDenied && (userLat !== null && userLon !== null)} hasVerifiedLocation={restaurant.hasVerifiedLocation} mapUrl={restaurant.mapsUrl} />
+              </motion.div>)}
+            </div>
 
-      <BottomNav />
+            {/* Infinite Scroll Trigger & Loading Indicator */}
+            <div ref={loadMoreRef} className="flex justify-center py-6">
+              {isLoadingMore && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex items-center gap-2 text-muted-foreground"
+                >
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  <span className="text-sm">{t("جاري التحميل...", "Loading...")}</span>
+                </motion.div>
+              )}
+              {!isLoadingMore && remainingCount > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {remainingCount} {t("مطعم متبقي", "remaining")}
+                </span>
+              )}
+            </div>
+          </div>}
+        </motion.div>}
+      </AnimatePresence>}
+    </main>
 
-      {/* Scroll to Top Button */}
-      <AnimatePresence>
-        {showScrollTop && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            onClick={scrollToTop}
-            className="fixed bottom-24 left-4 z-50 w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors"
-            aria-label={t("العودة للأعلى", "Scroll to top")}
-          >
-            <ArrowUp className="w-5 h-5 flex-shrink-0" />
-          </motion.button>
-        )}
-      </AnimatePresence>
+    <BottomNav />
 
-      <GuestSignInPrompt isOpen={showGuestPrompt} onClose={() => setShowGuestPrompt(false)} />
+    {/* Scroll to Top Button */}
+    <AnimatePresence>
+      {showScrollTop && (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          onClick={scrollToTop}
+          className="fixed bottom-24 left-4 z-50 w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors"
+          aria-label={t("العودة للأعلى", "Scroll to top")}
+        >
+          <ArrowUp className="w-5 h-5 flex-shrink-0" />
+        </motion.button>
+      )}
+    </AnimatePresence>
 
-      <UnifiedRestaurantDetail isOpen={showRestaurantDetail} onClose={() => {
+    <GuestSignInPrompt isOpen={showGuestPrompt} onClose={() => setShowGuestPrompt(false)} />
+
+    <UnifiedRestaurantDetail isOpen={showRestaurantDetail} onClose={() => {
       setShowRestaurantDetail(false);
       setSelectedRestaurantData(null);
     }} restaurant={selectedRestaurantData} onDeliveryAppClick={(app) => {
       if (selectedRestaurantData) handleDeliveryAppClick(selectedRestaurantData, app);
+    }} onMapClick={() => {
+      if (selectedRestaurantData) handleMapClick(selectedRestaurantData);
     }} />
-    </div>;
+  </div>;
 };
 export default Results;

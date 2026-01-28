@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MapPin, Clock, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -66,6 +66,7 @@ const Index = () => {
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
   const [isLoadingCuisines, setIsLoadingCuisines] = useState(true);
   const [showGuestPrompt, setShowGuestPrompt] = useState(false);
+  const trackedAdViewsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     fetchCuisines();
     fetchWeeklyPicks();
@@ -113,7 +114,15 @@ const Index = () => {
     setIsLoadingPicks(true);
     try {
       const today = new Date().toISOString().split('T')[0];
-      
+
+      // Cleanup expired ads
+      await supabase
+        .from("advertisements")
+        .update({ is_active: false })
+        .eq("placement", "most_popular")
+        .lt("end_date", today)
+        .eq("is_active", true);
+
       const {
         data: ads,
         error: adsError
@@ -124,7 +133,7 @@ const Index = () => {
         .eq("is_active", true)
         .lte("start_date", today)
         .gte("end_date", today);
-      
+
       if (adsError) throw adsError;
 
       // إخفاء القسم بالكامل عند عدم وجود إعلانات نشطة
@@ -132,17 +141,17 @@ const Index = () => {
         setWeeklyPicks([]);
         return;
       }
-      
+
       const restaurantIds = ads.map(ad => ad.restaurant_id);
       const {
         data: restaurants,
         error: restError
       } = await supabase.from("restaurants").select("*").in("id", restaurantIds);
-      
+
       if (restError) throw restError;
-      
+
       const picksWithDetails = await buildWeeklyPickDetails(restaurants || [], ads);
-      
+
       // ترتيب عشوائي للإعلانات لضمان العدالة في الظهور
       const shuffledPicks = shuffleArray(picksWithDetails);
       setWeeklyPicks(shuffledPicks);
@@ -193,19 +202,22 @@ const Index = () => {
   }[]) => {
     // تحسين: تنفيذ جميع ad tracking بالتوازي بدلاً من المتسلسل
     const trackingPromises = ads.map(async ad => {
+      if (trackedAdViewsRef.current.has(ad.id)) return;
+      trackedAdViewsRef.current.add(ad.id);
+
       try {
         // تنفيذ العمليتين بالتوازي
         await Promise.all([
-        // تسجيل التفاعل
-        supabase.from("ad_interactions").insert({
-          ad_id: ad.id,
-          interaction_type: "view",
-          user_id: user?.id || null
-        }),
-        // تحديث العداد مباشرة باستخدام increment
-        supabase.from("advertisements").update({
-          views_count: (supabase as any).raw('COALESCE(views_count, 0) + 1')
-        }).eq("id", ad.id)]);
+          // تسجيل التفاعل
+          supabase.from("ad_interactions").insert({
+            ad_id: ad.id,
+            interaction_type: "view",
+            user_id: user?.id || null
+          }),
+          // تحديث العداد مباشرة باستخدام increment RPC
+          supabase.rpc("increment_ad_views", {
+            ad_uuid: ad.id
+          })]);
       } catch (err) {
         // Silently fail for guests - tracking is optional
         console.log("Ad view tracking skipped (guest mode or RLS)");
@@ -305,100 +317,100 @@ const Index = () => {
     }
   };
   return <div className="min-h-screen bg-background pb-24" dir={language === "ar" ? "rtl" : "ltr"}>
-      <Header />
+    <Header />
 
-      <main className="max-w-md mx-auto px-4">
-        {/* Logo */}
-        <div className="flex justify-center pt-6 mb-4">
-          <img src={logo} alt="شنو ناكل؟" className="h-16 w-auto" />
+    <main className="max-w-md mx-auto px-4">
+      {/* Logo */}
+      <div className="flex justify-center pt-6 mb-4">
+        <img src={logo} alt="شنو ناكل؟" className="h-16 w-auto" />
+      </div>
+
+      {/* Category Filters */}
+      <section className="mb-6">
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
+          {isLoadingCuisines ? <div className="flex items-center justify-center py-2">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          </div> : cuisines.map(cuisine => <CategoryChip key={cuisine.id} icon={cuisine.emoji} label={language === "en" && cuisine.name_en ? cuisine.name_en : cuisine.name} isSelected={selectedCategory === cuisine.name} onClick={() => setSelectedCategory(cuisine.name)} />)}
         </div>
+      </section>
 
-        {/* Category Filters */}
-        <section className="mb-6">
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
-            {isLoadingCuisines ? <div className="flex items-center justify-center py-2">
-                <Loader2 className="w-5 h-5 animate-spin text-primary" />
-              </div> : cuisines.map(cuisine => <CategoryChip key={cuisine.id} icon={cuisine.emoji} label={language === "en" && cuisine.name_en ? cuisine.name_en : cuisine.name} isSelected={selectedCategory === cuisine.name} onClick={() => setSelectedCategory(cuisine.name)} />)}
-          </div>
-        </section>
-
-        {/* Spin Wheel */}
-        <motion.section initial={{
+      {/* Spin Wheel */}
+      <motion.section initial={{
         opacity: 0
       }} animate={{
         opacity: 1
       }} className="flex justify-center mb-8">
-          {isLoadingCuisines ? <div className="w-72 h-72 sm:w-80 sm:h-80 rounded-full bg-muted animate-pulse" /> : <SpinWheel onResult={handleSpinResult} selectedCategory={selectedCategory} cuisines={cuisines} />}
-        </motion.section>
+        {isLoadingCuisines ? <div className="w-72 h-72 sm:w-80 sm:h-80 rounded-full bg-muted animate-pulse" /> : <SpinWheel onResult={handleSpinResult} selectedCategory={selectedCategory} cuisines={cuisines} />}
+      </motion.section>
 
 
-        {/* Weekly Picks Section - يظهر فقط عند وجود إعلانات نشطة */}
-        {(isLoadingPicks || weeklyPicks.length > 0) && (
-          <section className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                <span>⭐</span>
-                <span>{t("الأكثر رواجاً", "Most Popular")}</span>
-              </h2>
+      {/* Weekly Picks Section - يظهر فقط عند وجود إعلانات نشطة */}
+      {(isLoadingPicks || weeklyPicks.length > 0) && (
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <span>⭐</span>
+              <span>{t("الأكثر رواجاً", "Most Popular")}</span>
+            </h2>
+          </div>
+
+          {isLoadingPicks ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
             </div>
-
-            {isLoadingPicks ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
-            ) : (
-              <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
+          ) : (
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
               {weeklyPicks.map(restaurant => <motion.div key={restaurant.id} initial={{
-            opacity: 0,
-            scale: 0.9
-          }} animate={{
-            opacity: 1,
-            scale: 1
-          }} className="shrink-0 w-40 bg-card rounded-xl overflow-hidden shadow-card cursor-pointer hover:shadow-elevated transition-shadow" onClick={() => handleRestaurantClick(restaurant)}>
-                  <div className="relative h-24">
-                    <img src={restaurant.image_url || restaurant1} alt={language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name} className="w-full h-full object-cover" />
+                opacity: 0,
+                scale: 0.9
+              }} animate={{
+                opacity: 1,
+                scale: 1
+              }} className="shrink-0 w-40 bg-card rounded-xl overflow-hidden shadow-card cursor-pointer hover:shadow-elevated transition-shadow" onClick={() => handleRestaurantClick(restaurant)}>
+                <div className="relative h-24">
+                  <img src={restaurant.image_url || restaurant1} alt={language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name} className="w-full h-full object-cover" />
+                </div>
+                <div className="p-2 flex items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-sm truncate">
+                      {language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {(() => {
+                        const matchedCuisine = cuisines.find(c => c.name === restaurant.cuisine || restaurant.cuisine?.startsWith(c.name) || c.name?.startsWith(restaurant.cuisine?.slice(0, -1) || ''));
+                        const cuisineName = language === "en" && matchedCuisine?.name_en ? matchedCuisine.name_en : restaurant.cuisine;
+                        return `${matchedCuisine?.emoji || "🍽️"} ${cuisineName}`;
+                      })()}
+                    </p>
                   </div>
-                  <div className="p-2 flex items-start gap-2">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-sm truncate">
-                        {language === "en" && restaurant.name_en ? restaurant.name_en : restaurant.name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        {(() => {
-                    const matchedCuisine = cuisines.find(c => c.name === restaurant.cuisine || restaurant.cuisine?.startsWith(c.name) || c.name?.startsWith(restaurant.cuisine?.slice(0, -1) || ''));
-                    const cuisineName = language === "en" && matchedCuisine?.name_en ? matchedCuisine.name_en : restaurant.cuisine;
-                    return `${matchedCuisine?.emoji || "🍽️"} ${cuisineName}`;
-                  })()}
-                      </p>
-                    </div>
-                    <button onClick={e => {
-                e.stopPropagation();
-                const mapsUrl = restaurant.branches?.[0]?.google_maps_url;
-                const lat = restaurant.branches?.[0]?.latitude;
-                const lng = restaurant.branches?.[0]?.longitude;
-                if (mapsUrl) {
-                  window.open(mapsUrl, '_blank', 'noopener,noreferrer');
-                } else if (lat && lng) {
-                  window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank', 'noopener,noreferrer');
-                } else {
-                  const searchQuery = encodeURIComponent(restaurant.name);
-                  window.open(`https://www.google.com/maps/search/${searchQuery}`, '_blank', 'noopener,noreferrer');
-                }
-              }} className="w-7 h-7 shrink-0 rounded-full bg-primary/10 hover:bg-primary/20 inline-flex items-center justify-center transition-colors text-primary">
-                      <MapPin className="w-3.5 h-3.5 mb-[4px]" />
-                    </button>
-                  </div>
-                </motion.div>
+                  <button onClick={e => {
+                    e.stopPropagation();
+                    const mapsUrl = restaurant.branches?.[0]?.google_maps_url;
+                    const lat = restaurant.branches?.[0]?.latitude;
+                    const lng = restaurant.branches?.[0]?.longitude;
+                    if (mapsUrl) {
+                      window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                    } else if (lat && lng) {
+                      window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank', 'noopener,noreferrer');
+                    } else {
+                      const searchQuery = encodeURIComponent(restaurant.name);
+                      window.open(`https://www.google.com/maps/search/${searchQuery}`, '_blank', 'noopener,noreferrer');
+                    }
+                  }} className="w-7 h-7 shrink-0 rounded-full bg-primary/10 hover:bg-primary/20 inline-flex items-center justify-center transition-colors text-primary">
+                    <MapPin className="w-3.5 h-3.5 mb-[4px]" />
+                  </button>
+                </div>
+              </motion.div>
               )}
-              </div>
-            )}
-          </section>
-        )}
-      </main>
+            </div>
+          )}
+        </section>
+      )}
+    </main>
 
-      <BottomNav />
+    <BottomNav />
 
-      <UnifiedRestaurantDetail isOpen={showRestaurantDetail} onClose={() => setShowRestaurantDetail(false)} restaurant={selectedRestaurant ? {
+    <UnifiedRestaurantDetail isOpen={showRestaurantDetail} onClose={() => setShowRestaurantDetail(false)} restaurant={selectedRestaurant ? {
       id: selectedRestaurant.id,
       name: language === "en" && selectedRestaurant.name_en ? selectedRestaurant.name_en : selectedRestaurant.name,
       image_url: selectedRestaurant.image_url || restaurant1,
@@ -411,7 +423,7 @@ const Index = () => {
       mapsUrl: selectedRestaurant.branches?.[0]?.google_maps_url
     } : null} />
 
-      <GuestSignInPrompt isOpen={showGuestPrompt} onClose={() => setShowGuestPrompt(false)} />
-    </div>;
+    <GuestSignInPrompt isOpen={showGuestPrompt} onClose={() => setShowGuestPrompt(false)} />
+  </div>;
 };
 export default Index;

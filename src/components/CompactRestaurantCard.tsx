@@ -51,20 +51,20 @@ const CompactRestaurantCard = ({
   hasVerifiedLocation = false
 }: CompactRestaurantCardProps) => {
   const { t } = useLanguage();
-  
+
   // SMART LOCATION LOGIC:
   // Show location icon ONLY if:
   // 1. mapUrl exists (admin manually added) OR
   // 2. hasVerifiedLocation is true (100% exact match from auto-search)
   // Accept all Google Maps URL formats
   const hasManualLocation = mapUrl && (
-    mapUrl.includes("google.com/maps") || 
-    mapUrl.includes("maps.app.goo.gl") || 
+    mapUrl.includes("google.com/maps") ||
+    mapUrl.includes("maps.app.goo.gl") ||
     mapUrl.includes("maps.google.com") ||
     mapUrl.includes("goo.gl/maps")
   );
   const showLocationIcon = hasManualLocation || hasVerifiedLocation;
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -81,9 +81,19 @@ const CompactRestaurantCard = ({
 
       {/* Left Side: Rating, Heart/Delete, Map (Vertical) */}
       <div className="flex flex-col items-center gap-2 shrink-0">
-        <div className="inline-flex items-center justify-center gap-1 bg-amber-100 px-2 pt-1.5 pb-1 rounded-lg">
-          <span className="text-xs font-bold leading-none mb-0 mr-[3px] px-[2px] font-mono">{rating.toFixed(1)}</span>
-          <Star className="w-3 h-3 fill-accent text-accent" />
+        <div className="flex flex-col gap-1 items-center">
+          <div className="inline-flex items-center justify-center gap-1 bg-amber-100 px-2 pt-1.5 pb-1 rounded-lg">
+            <span className="text-xs font-bold leading-none mb-0 mr-[3px] px-[2px] font-mono">{rating.toFixed(1)}</span>
+            <Star className="w-3 h-3 fill-accent text-accent" />
+          </div>
+
+          {/* Distance Display - Moved here as requested */}
+          {distance && showLocationIcon && (
+            <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground font-medium">
+              <span dir="ltr">{distance}</span>
+              <Navigation className="w-2.5 h-2.5" />
+            </div>
+          )}
         </div>
 
         {showDelete ? (
@@ -133,18 +143,13 @@ const CompactRestaurantCard = ({
       {/* Content: Name, Cuisine, Distance, Delivery Apps */}
       <div className="flex-1 min-w-0 text-start">
         <h4 className="font-bold text-base truncate mb-0.5">{name}</h4>
-        
+
         {/* Cuisine and Distance Row */}
         <div className="flex items-center gap-2 mb-2 flex-row-reverse justify-end">
           {cuisine && <p className="text-xs text-muted-foreground">{cuisine}</p>}
-          
-          {/* Distance Display - ONLY show if verified location */}
-          {distance && showLocationIcon ? (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Navigation className="w-3 h-3" />
-              <span>{distance}</span>
-            </div>
-          ) : null}
+
+
+          {/* Distance Display REMOVED from here */}
         </div>
 
         {/* Delivery Apps */}

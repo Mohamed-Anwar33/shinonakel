@@ -29,34 +29,60 @@ const GoogleMapView = ({ restaurants, userLocation, category }: GoogleMapViewPro
   const defaultCenter = { lat: 29.3759, lng: 47.9774 };
 
   // STRICT: Build branches ONLY from admin-entered data (NO auto-geocoding)
-  // Only restaurants with BOTH mapsUrl AND coordinates will appear on map
   useEffect(() => {
     const manualBranches: Branch[] = [];
 
     for (const restaurant of restaurants) {
-      // STRICT: Only include if admin manually added mapsUrl
-      // Accept all Google Maps URL formats
-      const hasManualMapsUrl = restaurant.mapsUrl && (
-        restaurant.mapsUrl.includes("google.com/maps") || 
-        restaurant.mapsUrl.includes("maps.app.goo.gl") || 
-        restaurant.mapsUrl.includes("maps.google.com") ||
-        restaurant.mapsUrl.includes("goo.gl/maps")
-      );
-      
-      // STRICT: Must have BOTH mapsUrl AND coordinates (admin-added)
-      if (hasManualMapsUrl && restaurant.latitude != null && restaurant.longitude != null) {
-        manualBranches.push({
-          id: `${restaurant.id}-manual`,
-          lat: restaurant.latitude,
-          lng: restaurant.longitude,
-          restaurantId: restaurant.id,
-          restaurantName: restaurant.name,
-          restaurantImage: restaurant.image || restaurant.image_url,
-          cuisine: restaurant.cuisine,
-          rating: restaurant.rating || null,
-          mapsUrl: restaurant.mapsUrl,
-          address: restaurant.address || "",
+      const branches = restaurant.branches || [];
+
+      // Check each branch explicitly
+      if (branches && branches.length > 0) {
+        branches.forEach((branch: any, index: number) => {
+          const hasManualMapsUrl = branch.google_maps_url && (
+            branch.google_maps_url.includes("google.com/maps") ||
+            branch.google_maps_url.includes("maps.app.goo.gl") ||
+            branch.google_maps_url.includes("maps.google.com") ||
+            branch.google_maps_url.includes("goo.gl/maps")
+          );
+
+          if (hasManualMapsUrl && branch.latitude != null && branch.longitude != null) {
+            manualBranches.push({
+              id: `${restaurant.id}-branch-${index}`, // Unique ID per branch
+              lat: branch.latitude,
+              lng: branch.longitude,
+              restaurantId: restaurant.id,
+              restaurantName: restaurant.name,
+              restaurantImage: restaurant.image || restaurant.image_url,
+              cuisine: restaurant.cuisine,
+              rating: restaurant.rating || null,
+              mapsUrl: branch.google_maps_url,
+              address: branch.address || restaurant.address || "",
+            });
+          }
         });
+      } else {
+        // Fallback for restaurants with legacy single-location data (if strictly valid)
+        const hasManualMapsUrl = restaurant.mapsUrl && (
+          restaurant.mapsUrl.includes("google.com/maps") ||
+          restaurant.mapsUrl.includes("maps.app.goo.gl") ||
+          restaurant.mapsUrl.includes("maps.google.com") ||
+          restaurant.mapsUrl.includes("goo.gl/maps")
+        );
+
+        if (hasManualMapsUrl && restaurant.latitude != null && restaurant.longitude != null) {
+          manualBranches.push({
+            id: `${restaurant.id}-manual`,
+            lat: restaurant.latitude,
+            lng: restaurant.longitude,
+            restaurantId: restaurant.id,
+            restaurantName: restaurant.name,
+            restaurantImage: restaurant.image || restaurant.image_url,
+            cuisine: restaurant.cuisine,
+            rating: restaurant.rating || null,
+            mapsUrl: restaurant.mapsUrl,
+            address: restaurant.address || "",
+          });
+        }
       }
     }
 
