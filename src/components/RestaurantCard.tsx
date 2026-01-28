@@ -21,6 +21,7 @@ interface RestaurantCardProps {
   longitude?: number;
   mapsUrl?: string | null;
   onClick?: () => void;
+  hasVerifiedLocation?: boolean; // New prop: true if has manual mapsUrl OR exact auto-match
 }
 
 const RestaurantCard = ({
@@ -38,11 +39,19 @@ const RestaurantCard = ({
   onClick,
   isFavorite = false,
   onFavoriteClick,
+  hasVerifiedLocation = false,
 }: RestaurantCardProps) => {
-  const hasMapLink = mapsUrl || (latitude && longitude);
+  // SMART LOCATION LOGIC:
+  // Show location icon ONLY if:
+  // 1. mapsUrl exists (admin manually added) OR
+  // 2. hasVerifiedLocation is true (100% exact match from auto-search)
+  const hasManualLocation = mapsUrl && mapsUrl.includes("google.com/maps");
+  const showLocationIcon = hasManualLocation || hasVerifiedLocation;
   
   const handleMapClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!showLocationIcon) return;
+    
     if (mapsUrl) {
       window.open(mapsUrl, '_blank', 'noopener,noreferrer');
     } else if (latitude && longitude) {
@@ -76,8 +85,8 @@ const RestaurantCard = ({
           {/* Cuisine */}
           <p className="text-sm text-muted-foreground mb-2">{cuisine}</p>
 
-          {/* Distance */}
-          {distance && (
+          {/* Distance - only show if location is verified */}
+          {distance && showLocationIcon && (
             <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
               <MapPin className="w-3 h-3 text-primary" />
               <span>{distance}</span>
@@ -123,14 +132,19 @@ const RestaurantCard = ({
             />
           </button>
 
-          {/* Map */}
-          <button
-            onClick={handleMapClick}
-            disabled={!hasMapLink}
-            className={`p-1 ${!hasMapLink ? "opacity-30" : ""}`}
-          >
-            <MapPin className="w-4 h-4 text-primary" />
-          </button>
+          {/* Map - ONLY show if verified location */}
+          {showLocationIcon ? (
+            <button
+              onClick={handleMapClick}
+              className="p-1"
+            >
+              <MapPin className="w-4 h-4 text-primary" />
+            </button>
+          ) : (
+            <div className="p-1 opacity-0">
+              <MapPin className="w-4 h-4" />
+            </div>
+          )}
         </div>
       </div>
     </motion.div>

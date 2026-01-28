@@ -1,13 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { MapPin, Loader2, Filter, X } from "lucide-react";
+import { MapPin, Loader2, X } from "lucide-react";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import GoogleMapView from "@/components/GoogleMapView";
 import { MapRestaurantSheet } from "@/components/MapRestaurantSheet";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useGoogleGeocoding } from "@/hooks/useGoogleGeocoding";
 import { getDeliveryAppColor } from "@/lib/deliveryApps";
 import restaurant1 from "@/assets/restaurant-1.jpg";
 import { Button } from "@/components/ui/button";
@@ -34,7 +33,7 @@ interface Restaurant {
   mapsUrl?: string | null;
   website?: string | null;
   deliveryApps?: DeliveryApp[];
-  isGeocoded?: boolean;
+  hasManualLocation?: boolean; // True if admin added mapsUrl
 }
 
 // Haversine formula to calculate distance between two points
@@ -73,9 +72,6 @@ const Map = () => {
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
   const [showRestaurantSheet, setShowRestaurantSheet] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [isGeocoding, setIsGeocoding] = useState(false);
-
-  const { geocodeMultiple } = useGoogleGeocoding();
 
   // Get filter from URL
   const categoryFilter = searchParams.get("category") || "الكل";
@@ -140,10 +136,15 @@ const Map = () => {
       const ratingsResults = await Promise.all(ratingsPromises);
 
       // Map restaurants - prioritize branch coordinates
+      // SMART LOCATION: Only include restaurants with manual mapsUrl or coordinates
       const mappedRestaurants: Restaurant[] = (restaurantsData || []).map((restaurant, index) => {
         const branch = restaurant.branches?.[0];
         const lat = branch?.latitude ? Number(branch.latitude) : null;
         const lng = branch?.longitude ? Number(branch.longitude) : null;
+        const mapsUrl = branch?.google_maps_url || null;
+        
+        // Check if has manual location (admin added mapsUrl)
+        const hasManualLocation = mapsUrl && mapsUrl.includes("google.com/maps");
         
         // Calculate distance if user location and restaurant location available
         let distanceText = "";
@@ -167,47 +168,18 @@ const Map = () => {
           longitude: lng,
           phone: restaurant.phone,
           address: branch?.address || null,
-          mapsUrl: branch?.google_maps_url || null,
+          mapsUrl: mapsUrl,
           website: restaurant.website,
           deliveryApps: restaurant.delivery_apps?.map((app: any) => ({
             name: app.app_name,
             color: getDeliveryAppColor(app.app_name),
             url: app.app_url,
           })) || [],
-          isGeocoded: false,
+          hasManualLocation: hasManualLocation || false,
         };
       });
 
       setRestaurants(mappedRestaurants);
-
-      // Geocode restaurants without coordinates
-      const needsGeocoding = mappedRestaurants.filter(r => !r.latitude || !r.longitude);
-      if (needsGeocoding.length > 0) {
-        setIsGeocoding(true);
-        try {
-          const geocodedResults = await geocodeMultiple(needsGeocoding);
-          
-          // Update restaurants with geocoded coordinates AND auto-discovered mapsUrl
-          setRestaurants(prev => prev.map(restaurant => {
-            const geocoded = geocodedResults.get(restaurant.id);
-            if (geocoded) {
-              return {
-                ...restaurant,
-                latitude: geocoded.lat,
-                longitude: geocoded.lng,
-                // Use the auto-discovered Google Maps URL from geocoding
-                mapsUrl: geocoded.mapsUrl,
-                isGeocoded: true,
-              };
-            }
-            return restaurant;
-          }));
-        } catch (error) {
-          console.error("Geocoding error:", error);
-        } finally {
-          setIsGeocoding(false);
-        }
-      }
     } catch (error) {
       console.error("Error fetching restaurants:", error);
     } finally {
@@ -228,25 +200,24 @@ const Map = () => {
     });
   }, [restaurants, categoryFilter]);
 
-  // Only show restaurants with valid coordinates
-  const restaurantsWithCoordinates = useMemo(() => {
-    return filteredRestaurants.filter(r => r.latitude != null && r.longitude != null);
+  // Only show restaurants with valid coordinates (manual or will be auto-searched)
+  // GoogleMapView will handle the smart location search internally
+  const restaurantsForMap = useMemo(() => {
+    return filteredRestaurants;
   }, [filteredRestaurants]);
 
-  // When clicking a marker, open Google Maps directly instead of showing sheet
+  // When clicking a marker, open Google Maps directly
   const handleRestaurantClick = (restaurant: Restaurant) => {
-    // Only open Google Maps if restaurant has a valid mapsUrl
     if (restaurant.mapsUrl) {
       window.open(restaurant.mapsUrl, '_blank', 'noopener,noreferrer');
-    } else if (restaurant.latitude && restaurant.longitude && !restaurant.isGeocoded) {
-      // Has explicit coordinates from DB - open directions
+    } else if (restaurant.latitude && restaurant.longitude) {
       window.open(
         `https://www.google.com/maps/dir/?api=1&destination=${restaurant.latitude},${restaurant.longitude}`,
         '_blank',
         'noopener,noreferrer'
       );
     } else {
-      // No valid location - show toast or fallback to sheet
+      // No valid location - show sheet
       setSelectedRestaurant(restaurant);
       setShowRestaurantSheet(true);
     }
@@ -338,20 +309,10 @@ const Map = () => {
         ) : (
           <div className="h-[calc(100vh-280px)] min-h-[400px] relative">
             <GoogleMapView
-              restaurants={restaurantsWithCoordinates}
+              restaurants={restaurantsForMap}
               userLocation={userLocation}
               category={displayCategory}
             />
-            
-            {/* Geocoding Indicator */}
-            {isGeocoding && (
-              <div className="absolute top-3 right-3 z-[1100] bg-card/95 backdrop-blur-sm rounded-lg px-3 py-2 shadow-soft flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                <span className="text-xs">
-                  {t("جاري البحث عن المواقع...", "Finding locations...")}
-                </span>
-              </div>
-            )}
           </div>
         )}
 
@@ -359,23 +320,14 @@ const Map = () => {
         <div className="mt-4 text-center text-sm text-muted-foreground">
           {categoryFilter !== "الكل" ? (
             t(
-              `عرض ${restaurantsWithCoordinates.length} مطعم ${displayCategory} على الخريطة`,
-              `Showing ${restaurantsWithCoordinates.length} ${displayCategory} restaurants on map`
+              `عرض مطاعم ${displayCategory} على الخريطة`,
+              `Showing ${displayCategory} restaurants on map`
             )
           ) : (
             t(
-              `عرض ${restaurantsWithCoordinates.length} مطعم على الخريطة`,
-              `Showing ${restaurantsWithCoordinates.length} restaurants on map`
+              `عرض المطاعم على الخريطة`,
+              `Showing restaurants on map`
             )
-          )}
-          {filteredRestaurants.length > restaurantsWithCoordinates.length && (
-            <span className="text-muted-foreground/60">
-              {" "}
-              ({t(
-                `${filteredRestaurants.length - restaurantsWithCoordinates.length} بدون موقع`,
-                `${filteredRestaurants.length - restaurantsWithCoordinates.length} without location`
-              )})
-            </span>
           )}
         </div>
       </main>
