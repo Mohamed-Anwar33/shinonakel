@@ -1,4 +1,4 @@
-import { Phone, MapPin, Globe, ExternalLink, Star, X } from "lucide-react";
+import { Phone, MapPin, Globe, ExternalLink, Star, X, Navigation, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/drawer";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getDeliveryAppColor, type DeliveryApp } from "@/lib/deliveryApps";
+import { Link } from "react-router-dom";
 
 interface Restaurant {
   id: string;
@@ -16,6 +17,7 @@ interface Restaurant {
   name_en?: string | null;
   image: string;
   rating: number;
+  distance?: string;
   cuisine: string;
   phone?: string | null;
   address?: string | null;
@@ -24,6 +26,7 @@ interface Restaurant {
   mapsUrl?: string | null;
   deliveryApps?: DeliveryApp[];
   website?: string | null;
+  isGeocoded?: boolean;
 }
 
 interface MapRestaurantSheetProps {
@@ -40,6 +43,9 @@ export function MapRestaurantSheet({ isOpen, onClose, restaurant }: MapRestauran
   const displayName = language === "en" && restaurant.name_en 
     ? restaurant.name_en 
     : restaurant.name;
+
+  // Check if restaurant has valid location for directions
+  const hasValidLocation = restaurant.mapsUrl || (restaurant.latitude && restaurant.longitude && !restaurant.isGeocoded);
 
   const handleGetDirections = () => {
     if (restaurant.mapsUrl) {
@@ -93,7 +99,15 @@ export function MapRestaurantSheet({ isOpen, onClose, restaurant }: MapRestauran
             {/* Info */}
             <div className="flex-1 min-w-0">
               <h2 className="font-bold text-xl truncate">{displayName}</h2>
-              <p className="text-sm text-muted-foreground mb-2">{restaurant.cuisine}</p>
+              <p className="text-sm text-muted-foreground mb-1">{restaurant.cuisine}</p>
+              
+              {/* Distance */}
+              {restaurant.distance && (
+                <p className="text-sm text-muted-foreground mb-2 flex items-center gap-1">
+                  <Navigation className="w-3.5 h-3.5" />
+                  {restaurant.distance}
+                </p>
+              )}
               
               {/* Rating */}
               <div className="inline-flex items-center gap-1.5 bg-amber-100 px-2.5 py-1 rounded-full">
@@ -113,24 +127,26 @@ export function MapRestaurantSheet({ isOpen, onClose, restaurant }: MapRestauran
 
           {/* Action Buttons */}
           <div className="grid grid-cols-2 gap-3">
-            <Button
-              onClick={handleGetDirections}
-              className="flex items-center gap-2"
-              disabled={!restaurant.mapsUrl && !restaurant.latitude}
-            >
-              <MapPin className="w-4 h-4" />
-              {t("الاتجاهات", "Directions")}
-            </Button>
+            {hasValidLocation && (
+              <Button
+                onClick={handleGetDirections}
+                className="flex items-center gap-2"
+              >
+                <MapPin className="w-4 h-4" />
+                {t("الاتجاهات", "Directions")}
+              </Button>
+            )}
             
-            <Button
-              variant="outline"
-              onClick={handleCall}
-              className="flex items-center gap-2"
-              disabled={!restaurant.phone}
-            >
-              <Phone className="w-4 h-4" />
-              {t("اتصال", "Call")}
-            </Button>
+            {restaurant.phone && (
+              <Button
+                variant="outline"
+                onClick={handleCall}
+                className="flex items-center gap-2"
+              >
+                <Phone className="w-4 h-4" />
+                {t("اتصال", "Call")}
+              </Button>
+            )}
           </div>
 
           {/* Delivery Apps */}
@@ -159,11 +175,26 @@ export function MapRestaurantSheet({ isOpen, onClose, restaurant }: MapRestauran
             </div>
           )}
 
+          {/* View Details Button */}
+          <Link 
+            to={`/restaurant/${restaurant.id}`}
+            onClick={onClose}
+            className="w-full"
+          >
+            <Button
+              variant="outline"
+              className="w-full flex items-center justify-between gap-2"
+            >
+              {t("عرض التفاصيل", "View Details")}
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </Link>
+
           {/* Website */}
           {restaurant.website && (
             <Button
-              variant="outline"
-              className="w-full flex items-center gap-2"
+              variant="ghost"
+              className="w-full flex items-center gap-2 text-muted-foreground"
               onClick={() => window.open(restaurant.website!, '_blank', 'noopener,noreferrer')}
             >
               <Globe className="w-4 h-4" />
