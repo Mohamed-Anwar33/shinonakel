@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ArrowLeft, Loader2, Star, Heart, Phone, MapPin, Globe, ChevronDown } from "lucide-react";
+import { ArrowRight, ArrowLeft, Loader2, Star, Heart, Phone, MapPin, Globe, ChevronDown, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CompactRestaurantCard from "@/components/CompactRestaurantCard";
 import BottomNav from "@/components/BottomNav";
@@ -145,6 +145,7 @@ const Results = () => {
   const shuffleKey = useRef<string>(""); // Track when to re-shuffle
   const loadMoreRef = useRef<HTMLDivElement>(null); // Ref for infinite scroll trigger
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   // Show location error if it occurs
   useEffect(() => {
@@ -537,6 +538,21 @@ const Results = () => {
 
     return () => observer.disconnect();
   }, [remainingCount, isLoadingMore, loadMore]);
+
+  // Scroll to top handler
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  // Show/hide scroll to top button based on scroll position
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
+    };
+    
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
   const getCuisineDisplay = (cuisineName: string) => {
     const cuisine = cuisines.find(c => c.name === cuisineName);
     const displayName = language === "en" && cuisine?.name_en ? cuisine.name_en : cuisineName;
@@ -862,6 +878,22 @@ const Results = () => {
       </main>
 
       <BottomNav />
+
+      {/* Scroll to Top Button */}
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            onClick={scrollToTop}
+            className="fixed bottom-24 left-4 z-50 w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors"
+            aria-label={t("العودة للأعلى", "Scroll to top")}
+          >
+            <ArrowUp className="w-5 h-5 flex-shrink-0" />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       <GuestSignInPrompt isOpen={showGuestPrompt} onClose={() => setShowGuestPrompt(false)} />
 
