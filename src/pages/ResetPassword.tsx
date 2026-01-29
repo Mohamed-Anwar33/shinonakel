@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +11,7 @@ import logo from "@/assets/logo.png";
 const ResetPassword = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -19,45 +20,54 @@ const ResetPassword = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [isCheckingToken, setIsCheckingToken] = useState(true);
+  const [tokenError, setTokenError] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
 
-  // Check if user has a valid recovery session
+  // Check for token in URL
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        // Listen for PASSWORD_RECOVERY event
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (event, session) => {
-            if (event === "PASSWORD_RECOVERY") {
-              setIsCheckingSession(false);
-              setSessionError(null);
+    const urlToken = searchParams.get("token");
+    
+    if (urlToken) {
+      // Custom Resend-based flow
+      setToken(urlToken);
+      setIsCheckingToken(false);
+      setTokenError(null);
+    } else {
+      // Legacy Supabase flow - check for session
+      const checkSession = async () => {
+        try {
+          const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            async (event) => {
+              if (event === "PASSWORD_RECOVERY") {
+                setIsCheckingToken(false);
+                setTokenError(null);
+              }
             }
+          );
+
+          const { data: { session }, error } = await supabase.auth.getSession();
+
+          if (error) {
+            setTokenError("حدث خطأ في التحقق من الجلسة");
+          } else if (!session) {
+            setTokenError("رابط إعادة تعيين كلمة المرور غير صالح أو منتهي الصلاحية. يرجى طلب رابط جديد.");
+          } else {
+            setTokenError(null);
           }
-        );
 
-        // Check current session
-        const { data: { session }, error } = await supabase.auth.getSession();
+          setIsCheckingToken(false);
 
-        if (error) {
-          setSessionError("حدث خطأ في التحقق من الجلسة");
-        } else if (!session) {
-          setSessionError("رابط إعادة تعيين كلمة المرور غير صالح أو منتهي الصلاحية. يرجى طلب رابط جديد.");
-        } else {
-          setSessionError(null);
+          return () => subscription.unsubscribe();
+        } catch {
+          setTokenError("حدث خطأ غير متوقع");
+          setIsCheckingToken(false);
         }
+      };
 
-        setIsCheckingSession(false);
-
-        return () => subscription.unsubscribe();
-      } catch (error) {
-        setSessionError("حدث خطأ غير متوقع");
-        setIsCheckingSession(false);
-      }
-    };
-
-    checkSession();
-  }, []);
+      checkSession();
+    }
+  }, [searchParams]);
 
   // Validate password - must have uppercase, symbol, numbers, min 8 chars
   const validatePassword = (value: string): boolean => {
@@ -110,11 +120,24 @@ const ResetPassword = () => {
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        password
-      });
+      if (token) {
+        // Custom Resend-based flow
+        const response = await supabase.functions.invoke("confirm-password-reset", {
+          body: { token, newPassword: password }
+        });
 
-      if (error) throw error;
+        if (response.error) throw response.error;
+        
+        const data = response.data;
+        if (data?.error) throw new Error(data.error);
+      } else {
+        // Legacy Supabase flow
+        const { error } = await supabase.auth.updateUser({
+          password
+        });
+
+        if (error) throw error;
+      }
 
       setIsSuccess(true);
       toast({
@@ -124,14 +147,14 @@ const ResetPassword = () => {
 
       // Redirect after 2 seconds
       setTimeout(() => {
-        navigate("/");
+        navigate("/welcome");
       }, 2000);
     } catch (error: any) {
       toast({
         title: "خطأ",
         description: error.message === "Auth session missing!"
           ? "انتهت صلاحية الجلسة. يرجى طلب رابط جديد لإعادة تعيين كلمة المرور."
-          : error.message,
+          : error.message || "حدث خطأ غير متوقع",
         variant: "destructive"
       });
     } finally {
@@ -139,8 +162,8 @@ const ResetPassword = () => {
     }
   };
 
-  // Show loading while checking session
-  if (isCheckingSession) {
+  // Show loading while checking token
+  if (isCheckingToken) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
         <motion.div
@@ -155,8 +178,8 @@ const ResetPassword = () => {
     );
   }
 
-  // Show error if session is invalid
-  if (sessionError) {
+  // Show error if token is invalid (only for legacy flow without token param)
+  if (tokenError && !token) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
         <motion.div
@@ -172,7 +195,7 @@ const ResetPassword = () => {
           <AlertCircle className="w-16 h-16 mx-auto text-destructive mb-4" />
           <h2 className="text-xl font-bold mb-2">رابط غير صالح</h2>
           <p className="text-muted-foreground mb-6">
-            {sessionError}
+            {tokenError}
           </p>
           <Button
             onClick={() => navigate("/welcome")}
@@ -274,7 +297,7 @@ const ResetPassword = () => {
           </div>
 
           <ul className="text-xs text-muted-foreground space-y-1 pr-2 list-disc list-inside">
-            <li className={validatePassword(password) ? "text-green-500" : ""}>8 أحرف على الأقل</li>
+            <li className={password.length >= 8 ? "text-green-500" : ""}>8 أحرف على الأقل</li>
             <li className={/[A-Z]/.test(password) ? "text-green-500" : ""}>حرف كبير (A-Z)</li>
             <li className={/[0-9]/.test(password) ? "text-green-500" : ""}>رقم (0-9)</li>
             <li className={/[!@#$%^&*(),.?":{}|<>]/.test(password) ? "text-green-500" : ""}>رمز (!@#$)</li>

@@ -331,11 +331,12 @@ const Welcome = () => {
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`
+      // Use custom Resend-based password reset
+      const response = await supabase.functions.invoke("request-password-reset", {
+        body: { email: email.trim() }
       });
 
-      if (error) throw error;
+      if (response.error) throw response.error;
 
       toast({
         title: t("تم الإرسال", "Sent"),
@@ -345,7 +346,7 @@ const Welcome = () => {
     } catch (error: any) {
       toast({
         title: t("خطأ", "Error"),
-        description: error.message,
+        description: error.message || t("حدث خطأ", "An error occurred"),
         variant: "destructive"
       });
     } finally {
