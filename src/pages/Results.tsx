@@ -114,10 +114,38 @@ const Results = () => {
     }
   }, [locationError, filterNearby, t, toast]);
   // REMOVED: geocodingInProgress ref no longer needed
+  // Unified Data Loading to prevent race conditions
   useEffect(() => {
-    fetchRestaurants();
-    fetchCuisines();
-    fetchPinnedAd();
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        // Run all fetches in parallel
+        const [restaurantsData, pinnedAdResult, _] = await Promise.all([
+          fetchRestaurants(),
+          fetchPinnedAd(),
+          fetchCuisines()
+        ]);
+
+        // Now we have both results, we can coordinate the state updates
+        if (pinnedAdResult) {
+          setPinnedAdRestaurantId(pinnedAdResult.restaurantId);
+          setPinnedAdId(pinnedAdResult.adId);
+        } else {
+          setPinnedAdRestaurantId(null);
+          setPinnedAdId(null);
+        }
+
+        // Set restaurants last to ensure consistent render
+        setRestaurants(restaurantsData || []);
+
+      } catch (error) {
+        console.error("Error loading data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
   }, [category]);
   const fetchCuisines = async () => {
     const {
@@ -130,8 +158,7 @@ const Results = () => {
       fetchSavedRestaurants();
     }
   }, [user, isGuest]);
-  const fetchRestaurants = async () => {
-    setIsLoading(true);
+  const fetchRestaurants = async (): Promise<Restaurant[]> => {
     try {
       const {
         data,
@@ -145,11 +172,10 @@ const Results = () => {
         ascending: false
       });
       if (error) throw error;
-      setRestaurants(data || []);
+      return data || [];
     } catch (error) {
       console.error("Error fetching restaurants:", error);
-    } finally {
-      setIsLoading(false);
+      return [];
     }
   };
 
@@ -174,7 +200,7 @@ const Results = () => {
     );
   };
 
-  const fetchPinnedAd = async () => {
+  const fetchPinnedAd = async (): Promise<{ restaurantId: string, adId: string } | null> => {
     try {
       // Use Kuwait Timezone to avoid "tomorrow/yesterday" server mismatches
       const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kuwait' });
@@ -229,9 +255,7 @@ const Results = () => {
       });
 
       if (validAds.length === 0) {
-        setPinnedAdRestaurantId(null);
-        setPinnedAdId(null);
-        return;
+        return null;
       }
 
       // C) Priority rule: Cuisine > Global
@@ -246,9 +270,7 @@ const Results = () => {
       }
 
       if (candidates.length === 0) {
-        setPinnedAdRestaurantId(null);
-        setPinnedAdId(null);
-        return;
+        return null;
       }
 
       // D) Randomization
@@ -258,16 +280,14 @@ const Results = () => {
       // E) Immediate termination cleanup (Safety check)
       if (picked.end_date && picked.end_date < today) {
         await supabase.from("advertisements").update({ is_active: false }).eq("id", picked.id);
-        setPinnedAdRestaurantId(null);
-        setPinnedAdId(null);
-        return;
+        return null;
       }
 
-      setPinnedAdRestaurantId(picked.restaurant_id);
-      setPinnedAdId(picked.id);
+      return { restaurantId: picked.restaurant_id, adId: picked.id };
 
     } catch (error) {
       console.error("Error fetching pinned ad:", error);
+      return null;
     }
   };
 
