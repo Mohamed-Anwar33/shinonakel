@@ -80,21 +80,11 @@ const CompactRestaurantCard = ({
       )}
 
       {/* Left Side: Rating/Distance Row, Heart, Map */}
-      <div className="flex flex-col items-end gap-2 shrink-0">
-        {/* Top Row: Distance and Rating */}
-        <div className="flex flex-row gap-1 items-center justify-end">
-          {/* Distance - Styled as text, next to rating */}
-          {distance && (
-            <span className="text-[10px] text-muted-foreground font-medium leading-none" dir="ltr">
-              {distance}
-            </span>
-          )}
-
-          {/* Rating Badge */}
-          <div className="inline-flex items-center justify-center gap-1 bg-amber-100 px-1.5 pt-1.5 pb-1 rounded-lg whitespace-nowrap shadow-sm min-w-[32px]">
-            <span className="text-xs font-bold leading-none mb-0 font-mono">{rating.toFixed(1)}</span>
-            <Star className="w-2.5 h-2.5 fill-accent text-accent" />
-          </div>
+      <div className="flex flex-col items-center gap-2 shrink-0">
+        {/* Rating Badge - Centered */}
+        <div className="inline-flex items-center justify-center gap-1 bg-amber-100 px-1.5 pt-1.5 pb-1 rounded-lg whitespace-nowrap shadow-sm min-w-[32px]">
+          <span className="text-xs font-bold leading-none mb-0 font-mono">{rating.toFixed(1)}</span>
+          <Star className="w-2.5 h-2.5 fill-accent text-accent" />
         </div>
 
         {showDelete ? (
@@ -143,7 +133,14 @@ const CompactRestaurantCard = ({
 
       {/* Content: Name, Cuisine, Delivery Apps */}
       <div className="flex-1 min-w-0 text-start">
-        <h4 className="font-bold text-base truncate mb-0.5">{name}</h4>
+        <div className="flex items-center flex-row-reverse justify-end gap-2 mb-0.5">
+          {distance && (
+            <span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap pt-1">
+              {distance}
+            </span>
+          )}
+          <h4 className="font-bold text-base truncate">{name}</h4>
+        </div>
 
         {/* Cuisine */}
         <div className="flex items-center gap-2 mb-2 flex-row-reverse justify-end text-xs text-muted-foreground">
