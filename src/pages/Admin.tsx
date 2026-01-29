@@ -1380,13 +1380,17 @@ const Admin = () => {
       <div className="p-4">
         <Tabs defaultValue="restaurants" className="w-full">
           <TabsList className="grid w-full grid-cols-5 mb-6">
-            <TabsTrigger value="contacts" className="text-sm">
-              الطلبات
-              <MessageCircle className="w-4 h-4 mr-2 ml-2" />
+            <TabsTrigger value="legal_pages" className="text-sm">
+              الصفحات القانونية
+              <FileText className="w-4 h-4 mr-2 ml-2" />
             </TabsTrigger>
             <TabsTrigger value="admins" className="text-sm">
               المشرفين
               <Users className="w-4 h-4 mr-2 ml-2" />
+            </TabsTrigger>
+            <TabsTrigger value="contacts" className="text-sm">
+              الطلبات
+              <MessageCircle className="w-4 h-4 mr-2 ml-2" />
             </TabsTrigger>
             <TabsTrigger value="ads" className="text-sm">
               الإعلانات
@@ -1395,10 +1399,6 @@ const Admin = () => {
             <TabsTrigger value="restaurants" className="text-sm">
               المطاعم
               <Store className="w-4 h-4 mr-2 ml-2" />
-            </TabsTrigger>
-            <TabsTrigger value="legal" className="text-sm">
-              الصفحات القانونية
-              <FileText className="w-4 h-4 mr-2 ml-2" />
             </TabsTrigger>
           </TabsList>
 
@@ -2130,7 +2130,7 @@ const Admin = () => {
                                 value={pinnedAdAllCount}
                                 onChange={(e) => setPinnedAdAllCount(Number(e.target.value))}
                                 className="text-right"
-                                placeholder="عدد الظهور"
+                                placeholder="عدد النقرات"
                               />
                             </div>
                             <div className="space-y-2 order-2">
@@ -2147,7 +2147,7 @@ const Admin = () => {
                                 value={pinnedAdCuisineCount}
                                 onChange={(e) => setPinnedAdCuisineCount(Number(e.target.value))}
                                 className="text-right"
-                                placeholder="عدد الظهور"
+                                placeholder="عدد النقرات"
                               />
                             </div>
                           </div>
@@ -2158,14 +2158,14 @@ const Admin = () => {
                       ) : (
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2 order-1">
-                            <Label className="text-right block text-sm">عدد مرات الظهور</Label>
+                            <Label className="text-right block text-sm">عدد النقرات</Label>
                             <Input
                               type="number"
                               min={1}
                               value={adPopupCount}
                               onChange={(e) => setAdPopupCount(Number(e.target.value))}
                               className="text-right"
-                              placeholder="أدخل عدد مرات الظهور"
+                              placeholder="أدخل عدد النقرات"
                             />
                           </div>
                           <div className="space-y-2 order-2">
@@ -2324,7 +2324,7 @@ const Admin = () => {
                                 : (ad.end_date && new Date(ad.end_date) < new Date(new Date().setHours(0, 0, 0, 0)))
                                   ? "منتهي الصلاحية"
                                   : (ad.max_views && ad.views_count >= ad.max_views)
-                                    ? "اكتملت المشاهدات"
+                                    ? "اكتملت"
                                     : "نشط"
                               }
                             </Badge>
@@ -2830,15 +2830,15 @@ const Admin = () => {
               </div>
             </div>
 
-            {/* Max Views for pinned_ad */}
+            {/* Max Views (renamed to Clicks per user request) for pinned_ad */}
             {(editAdPlacements.includes("pinned_ad") || editAdPlacements.some(p => p.startsWith("pinned_ad"))) && (
               <div className="space-y-2">
-                <Label className="text-right block">عدد مرات الظهور</Label>
+                <Label className="text-right block">عدد النقرات</Label>
                 <Input
                   type="number"
                   value={editAdMaxViews || ""}
                   onChange={(e) => setEditAdMaxViews(e.target.value ? parseInt(e.target.value) : null)}
-                  placeholder="أدخل عدد مرات الظهور"
+                  placeholder="أدخل عدد النقرات"
                   min={1}
                   className="text-right"
                   dir="rtl"
@@ -2891,7 +2891,7 @@ const Admin = () => {
               </div>
             </div>
             <div className="flex items-center gap-3 flex-row-reverse">
-              <Label htmlFor="edit-ad-active">الحالة</Label>
+              {/* Status Label Removed per user request */}
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="edit-ad-active"

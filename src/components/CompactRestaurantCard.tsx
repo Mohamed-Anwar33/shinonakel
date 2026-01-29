@@ -79,15 +79,15 @@ const CompactRestaurantCard = ({
         </div>
       )}
 
-      {/* Left Side: Rating, Heart/Delete, Map (Vertical) */}
-      <div className="flex flex-col items-center gap-2 shrink-0">
-        <div className="flex flex-row gap-1 items-center justify-center">
-          {/* Distance Badge */}
+      {/* Left Side: Rating/Distance Row, Heart, Map */}
+      <div className="flex flex-col items-end gap-2 shrink-0">
+        {/* Top Row: Distance and Rating */}
+        <div className="flex flex-row gap-1 items-center justify-end">
+          {/* Distance - Styled as text, next to rating */}
           {distance && (
-            <div className="inline-flex items-center justify-center bg-gray-100 px-1.5 py-1 rounded-md whitespace-nowrap border border-gray-200 min-w-[40px]">
-              <Navigation className="w-2.5 h-2.5 text-muted-foreground ml-0.5" />
-              <span className="text-[9px] font-bold text-gray-600 leading-none pt-0.5" dir="ltr">{distance}</span>
-            </div>
+            <span className="text-[10px] text-muted-foreground font-medium leading-none" dir="ltr">
+              {distance}
+            </span>
           )}
 
           {/* Rating Badge */}
@@ -141,16 +141,13 @@ const CompactRestaurantCard = ({
         )}
       </div>
 
-      {/* Content: Name, Cuisine, Distance, Delivery Apps */}
+      {/* Content: Name, Cuisine, Delivery Apps */}
       <div className="flex-1 min-w-0 text-start">
         <h4 className="font-bold text-base truncate mb-0.5">{name}</h4>
 
-        {/* Cuisine and Distance Row */}
-        <div className="flex items-center gap-2 mb-2 flex-row-reverse justify-end">
-          {cuisine && <p className="text-xs text-muted-foreground">{cuisine}</p>}
-
-
-          {/* Distance Display REMOVED from here */}
+        {/* Cuisine */}
+        <div className="flex items-center gap-2 mb-2 flex-row-reverse justify-end text-xs text-muted-foreground">
+          {cuisine && <p>{cuisine}</p>}
         </div>
 
         {/* Delivery Apps */}
