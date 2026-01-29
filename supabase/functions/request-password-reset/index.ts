@@ -22,10 +22,10 @@ serve(async (req: Request) => {
     const { email } = await req.json();
 
     if (!email || typeof email !== "string") {
-      return new Response(
-        JSON.stringify({ error: "Email is required" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      return new Response(JSON.stringify({ error: "Email is required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
     const normalizedEmail = email.toLowerCase().trim();
@@ -37,7 +37,7 @@ serve(async (req: Request) => {
       const remainingSeconds = Math.ceil((RATE_LIMIT_SECONDS * 1000 - (now - lastRequest)) / 1000);
       return new Response(
         JSON.stringify({ error: `Please wait ${remainingSeconds} seconds before requesting again` }),
-        { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } },
       );
     }
     rateLimitMap.set(normalizedEmail, now);
@@ -54,18 +54,19 @@ serve(async (req: Request) => {
       // Don't reveal if user exists or not for security
       return new Response(
         JSON.stringify({ success: true, message: "If an account exists, a reset email will be sent" }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
       );
     }
 
-    const userExists = users.users.some(u => u.email?.toLowerCase() === normalizedEmail);
-    
+    // Fixed implicit any error
+    const userExists = users.users.some((u: any) => u.email?.toLowerCase() === normalizedEmail);
+
     // Always return success to prevent email enumeration
     if (!userExists) {
       console.log("User not found, but returning success for security");
       return new Response(
         JSON.stringify({ success: true, message: "If an account exists, a reset email will be sent" }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
       );
     }
 
@@ -73,7 +74,7 @@ serve(async (req: Request) => {
     const tokenBytes = new Uint8Array(32);
     crypto.getRandomValues(tokenBytes);
     const rawToken = Array.from(tokenBytes)
-      .map(b => b.toString(16).padStart(2, "0"))
+      .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
 
     // Hash the token for storage using SHA-256
@@ -81,7 +82,7 @@ serve(async (req: Request) => {
     const data = encoder.encode(rawToken);
     const hashBuffer = await crypto.subtle.digest("SHA-256", data);
     const tokenHash = Array.from(new Uint8Array(hashBuffer))
-      .map(b => b.toString(16).padStart(2, "0"))
+      .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
 
     // Calculate expiry (60 minutes from now)
@@ -95,13 +96,11 @@ serve(async (req: Request) => {
       .is("used_at", null);
 
     // Store token hash in database
-    const { error: insertError } = await supabase
-      .from("password_reset_tokens")
-      .insert({
-        email: normalizedEmail,
-        token_hash: tokenHash,
-        expires_at: expiresAt,
-      });
+    const { error: insertError } = await supabase.from("password_reset_tokens").insert({
+      email: normalizedEmail,
+      token_hash: tokenHash,
+      expires_at: expiresAt,
+    });
 
     if (insertError) {
       console.error("Error storing token:", insertError);
@@ -127,19 +126,24 @@ serve(async (req: Request) => {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            .btn-reset:hover {
+              background: linear-gradient(135deg, #D93644 0%, #C22E3C 100%) !important;
+            }
+          </style>
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 20px;">
-          <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-            <div style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 30px; text-align: center;">
+          <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); direction: rtl; text-align: right;">
+            <div style="background: linear-gradient(135deg, #EB4B59 0%, #D93644 100%); padding: 30px; text-align: center;">
               <h1 style="color: #ffffff; margin: 0; font-size: 28px;">شنو ناكل؟</h1>
             </div>
-            <div style="padding: 30px;">
+            <div style="padding: 30px; text-align: right;">
               <h2 style="color: #1a1a1a; margin-top: 0;">إعادة تعيين كلمة المرور</h2>
               <p style="color: #666666; line-height: 1.6;">
                 لقد طلبت إعادة تعيين كلمة المرور لحسابك. اضغط على الزر أدناه لإنشاء كلمة مرور جديدة.
               </p>
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${resetUrl}" style="display: inline-block; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                <a href="${resetUrl}" class="btn-reset" style="display: inline-block; background: linear-gradient(135deg, #EB4B59 0%, #D93644 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 16px;">
                   إعادة تعيين كلمة المرور
                 </a>
               </div>
@@ -147,7 +151,7 @@ serve(async (req: Request) => {
                 هذا الرابط صالح لمدة ساعة واحدة فقط. إذا لم تطلب إعادة تعيين كلمة المرور، يمكنك تجاهل هذا البريد.
               </p>
               <hr style="border: none; border-top: 1px solid #eeeeee; margin: 20px 0;">
-              <p style="color: #cccccc; font-size: 12px; text-align: center;">
+              <p style="color: #cccccc; font-size: 12px; text-align: right;">
                 &copy; ${new Date().getFullYear()} Shino Nakel. جميع الحقوق محفوظة.
               </p>
             </div>
@@ -166,13 +170,13 @@ serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({ success: true, message: "If an account exists, a reset email will be sent" }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
     );
   } catch (error: any) {
     console.error("Error in request-password-reset:", error);
-    return new Response(
-      JSON.stringify({ error: error.message || "An error occurred" }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
+    return new Response(JSON.stringify({ error: error.message || "An error occurred" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
 });
