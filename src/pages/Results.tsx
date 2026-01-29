@@ -244,9 +244,10 @@ const Results = () => {
 
       // Filter candidates based on strict rules
       const validAds = (ads || []).filter(ad => {
-        // Rule: views_count < max_views 
         // Rule: views_count < max_views OR max_views is NULL (unlimited)
-        const hasViewsRemaining = !ad.max_views || ((ad.views_count || 0) < ad.max_views);
+        // Explicit check: max_views === null ? true : (views_count < max_views)
+        const currentViews = ad.views_count || 0;
+        const hasViewsRemaining = ad.max_views === null ? true : currentViews < ad.max_views;
 
         // Rule: end_date >= today OR end_date IS NULL
         const notExpiredByDate = !ad.end_date || ad.end_date >= today;
@@ -273,12 +274,17 @@ const Results = () => {
         return null;
       }
 
-      // D) Randomization
-      // Pick one at random per page load
-      const picked = candidates[Math.floor(Math.random() * candidates.length)];
+      // D) Randomization using Crypto API for better randomness
+      const pickRandom = <T,>(arr: T[]): T => {
+        const r = crypto.getRandomValues(new Uint32Array(1))[0] / (Math.pow(2, 32));
+        return arr[Math.floor(r * arr.length)];
+      };
+
+      const picked = pickRandom(candidates);
 
       // E) Immediate termination cleanup (Safety check)
-      if (picked.end_date && picked.end_date < today) {
+      // Check strict end date expiration
+      if (picked.end_date !== null && picked.end_date < today) {
         await supabase.from("advertisements").update({ is_active: false }).eq("id", picked.id);
         return null;
       }
