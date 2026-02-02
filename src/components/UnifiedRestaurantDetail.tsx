@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Star, Phone, Heart, MapPin } from "lucide-react";
+import { X, Star, Phone, Heart, MapPin, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
+import { useModeratorRole } from "@/hooks/useModeratorRole";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,6 +16,16 @@ import { getDeliveryAppColor } from "@/lib/deliveryApps";
 import { trackRestaurantInteraction } from "@/lib/analytics";
 import { Globe } from "lucide-react";
 import GuestSignInPrompt from "@/components/GuestSignInPrompt";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 interface Review {
   id: string;
   user_id: string;
@@ -91,6 +102,11 @@ const UnifiedRestaurantDetail = ({
   const [cuisineEmoji, setCuisineEmoji] = useState("🍽️");
   const [cuisineDisplay, setCuisineDisplay] = useState("");
   const [showGuestPrompt, setShowGuestPrompt] = useState(false);
+  const [ratingToDelete, setRatingToDelete] = useState<Review | null>(null);
+  const [isDeletingAdminRating, setIsDeletingAdminRating] = useState(false);
+  
+  const { canManageRatings } = useModeratorRole();
+  
   useEffect(() => {
     if (isOpen && restaurant) {
       checkFavoriteStatus();
@@ -329,6 +345,37 @@ const UnifiedRestaurantDetail = ({
       setIsSubmitting(false);
     }
   };
+
+  const handleAdminDeleteRating = async () => {
+    if (!ratingToDelete || !canManageRatings) return;
+    
+    setIsDeletingAdminRating(true);
+    try {
+      const { error } = await supabase
+        .from("restaurant_ratings")
+        .delete()
+        .eq("id", ratingToDelete.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: t("تم الحذف", "Deleted"),
+        description: t("تم حذف التقييم بنجاح", "Rating deleted successfully")
+      });
+      
+      setRatingToDelete(null);
+      fetchReviews();
+    } catch (error: any) {
+      toast({
+        title: t("خطأ", "Error"),
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeletingAdminRating(false);
+    }
+  };
+
   if (!restaurant) return null;
   const openExternal = (url: string) => {
     const win = window.open(url, "_blank", "noopener,noreferrer");
@@ -674,6 +721,16 @@ const UnifiedRestaurantDetail = ({
                               {[1, 2, 3, 4, 5].map(star => <Star key={star} className={`w-3 h-3 ${star <= review.rating ? "fill-amber-400 text-amber-400" : "text-muted"}`} />)}
                             </div>
                           </div>
+                          {/* Admin/Moderator delete button */}
+                          {canManageRatings && (
+                            <button
+                              onClick={() => setRatingToDelete(review)}
+                              className="p-2 rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
+                              title={t("حذف التقييم", "Delete rating")}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                         {review.comment && <p className="text-sm text-muted-foreground leading-relaxed">{review.comment}</p>}
                       </motion.div>;
@@ -688,6 +745,35 @@ const UnifiedRestaurantDetail = ({
     </AnimatePresence>
 
     <GuestSignInPrompt isOpen={showGuestPrompt} onClose={() => setShowGuestPrompt(false)} />
+
+    {/* Admin delete confirmation dialog */}
+    <AlertDialog open={!!ratingToDelete} onOpenChange={(open) => !open && setRatingToDelete(null)}>
+      <AlertDialogContent dir={language === "ar" ? "rtl" : "ltr"}>
+        <AlertDialogHeader>
+          <AlertDialogTitle className={language === "ar" ? "text-right" : "text-left"}>
+            {t("حذف التقييم", "Delete Rating")}
+          </AlertDialogTitle>
+          <AlertDialogDescription className={language === "ar" ? "text-right" : "text-left"}>
+            {t(
+              "هل أنت متأكد من حذف هذا التقييم؟ لا يمكن التراجع عن هذا الإجراء.",
+              "Are you sure you want to delete this rating? This action cannot be undone."
+            )}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className={language === "ar" ? "flex-row-reverse gap-2" : ""}>
+          <AlertDialogCancel disabled={isDeletingAdminRating}>
+            {t("إلغاء", "Cancel")}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleAdminDeleteRating}
+            disabled={isDeletingAdminRating}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {isDeletingAdminRating ? t("جاري الحذف...", "Deleting...") : t("حذف", "Delete")}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </>;
 };
 export default UnifiedRestaurantDetail;
