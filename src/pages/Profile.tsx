@@ -171,29 +171,46 @@ const Profile = () => {
   };
 
   // Search functions
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+  const executeSearch = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
 
     setIsSearching(true);
     try {
       const { data, error } = await supabase
         .from("profiles")
         .select("id, username, full_name, avatar_url")
-        .ilike("username", `%${searchQuery}%`)
+        .ilike("username", `%${query}%`)
         .neq("id", user!.id)
         .limit(10);
 
       if (error) throw error;
       setSearchResults(data || []);
     } catch (error: any) {
-      toast({
-        title: t("خطأ في البحث", "Search Error"),
-        description: error.message,
-        variant: "destructive"
-      });
+      console.error("Search error:", error);
     } finally {
       setIsSearching(false);
     }
+  };
+
+  // Debounced search effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery.trim()) {
+        executeSearch(searchQuery);
+      } else {
+        setSearchResults([]);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleSearch = () => {
+    // Manual trigger just in case
+    executeSearch(searchQuery);
   };
 
   const addToFavorites = async (receiverId: string) => {

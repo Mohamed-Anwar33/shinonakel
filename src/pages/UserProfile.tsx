@@ -99,7 +99,7 @@ const UserProfile = () => {
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("username", username)
+        .ilike("username", username)
         .maybeSingle();
 
       if (error) throw error;

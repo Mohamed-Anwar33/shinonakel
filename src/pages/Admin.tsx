@@ -70,7 +70,7 @@ interface AdminUser {
   user_id: string;
   role: string;
   created_at: string;
-  profile?: {
+  profiles?: {
     username: string;
     full_name: string | null;
   };
@@ -106,6 +106,17 @@ const ADMIN_PERMISSIONS = [
   { id: "health_check", label: "فحص البيانات" },
 ];
 
+interface User {
+  id: string;
+  username: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  email: string;
+  role: string;
+  created_at: string;
+  is_admin: boolean;
+}
+
 const Admin = () => {
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
@@ -115,6 +126,7 @@ const Admin = () => {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [advertisements, setAdvertisements] = useState<Advertisement[]>([]);
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]); // New list for all users
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
   const [contactRequests, setContactRequests] = useState<ContactRequest[]>([]);
   const [restaurantInteractions, setRestaurantInteractions] = useState<Record<string, number>>({});
@@ -125,7 +137,6 @@ const Admin = () => {
   const [restaurantNameEn, setRestaurantNameEn] = useState("");
   const [restaurantCuisines, setRestaurantCuisines] = useState<string[]>([]);
   const [restaurantPhone, setRestaurantPhone] = useState("");
-  const [restaurantWebsite, setRestaurantWebsite] = useState("");
   const [restaurantImage, setRestaurantImage] = useState("");
   const [restaurantImageUrlInput, setRestaurantImageUrlInput] = useState(""); // For manual URL entry
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -164,7 +175,6 @@ const Admin = () => {
   const [editRestaurantNameEn, setEditRestaurantNameEn] = useState("");
   const [editRestaurantCuisines, setEditRestaurantCuisines] = useState<string[]>([]);
   const [editRestaurantPhone, setEditRestaurantPhone] = useState("");
-  const [editRestaurantWebsite, setEditRestaurantWebsite] = useState("");
   const [editRestaurantImage, setEditRestaurantImage] = useState("");
   const [editDeliveryApps, setEditDeliveryApps] = useState<{ name: string; url: string }[]>([]);
   const [editBranches, setEditBranches] = useState<{ id?: string; mapsUrl: string; latitude: string; longitude: string }[]>([]);
@@ -197,6 +207,9 @@ const Admin = () => {
   // Contact requests filter state
   const [contactTypeFilter, setContactTypeFilter] = useState<string>("");
   const [contactStatusFilter, setContactStatusFilter] = useState<string>("");
+
+  // User list filter state
+  const [userSearchQuery, setUserSearchQuery] = useState("");
 
   // Filtered and sorted restaurants
   const filteredRestaurants = restaurants
@@ -237,6 +250,16 @@ const Admin = () => {
     const matchesType = contactTypeFilter === "" || contactTypeFilter === "all" || request.request_type === contactTypeFilter;
     const matchesStatus = contactStatusFilter === "" || contactStatusFilter === "all" || request.status === contactStatusFilter;
     return matchesType && matchesStatus;
+  });
+
+  // Filtered users
+  const filteredUsers = allUsers.filter((u) => {
+    const search = userSearchQuery.toLowerCase();
+    return (
+      (u.username && u.username.toLowerCase().includes(search)) ||
+      (u.email && u.email.toLowerCase().includes(search)) ||
+      (u.full_name && u.full_name.toLowerCase().includes(search))
+    );
   });
 
   useEffect(() => {
@@ -287,15 +310,55 @@ const Admin = () => {
   const fetchData = async () => {
     setIsLoadingData(true);
     try {
-      const [restaurantsRes, adminsRes, cuisinesRes, contactRes, interactionsRes] = await Promise.all([
+      const [restaurantsRes, adminsRes, cuisinesRes, contactRes, interactionsRes, usersRes] = await Promise.all([
         supabase.from("restaurants").select("*").eq("is_deleted", false).order("created_at", { ascending: false }) as any,
-        supabase.from("user_roles").select("*, profile:profiles(username, full_name)").order("created_at", { ascending: false }) as any,
+        supabase.from("user_roles").select("*, profiles(username, full_name)").order("created_at", { ascending: false }) as any,
         supabase.from("cuisines").select("id, name, name_en, emoji").eq("is_active", true).order("sort_order", { ascending: true }) as any,
         supabase.from("contact_requests").select("*").order("created_at", { ascending: false }) as any,
         supabase.from("restaurant_interactions").select("restaurant_id") as any,
+        supabase.rpc("get_all_profiles_with_email" as any),
       ]);
 
       if (restaurantsRes.data) setRestaurants(restaurantsRes.data);
+
+      // Handle Users with Fallback
+      if (usersRes.data) {
+        setAllUsers(usersRes.data as User[]);
+      } else {
+        console.error("RPC 'get_all_profiles_with_email' failed:", usersRes.error);
+        console.warn("Falling back to standard profiles fetch (emails will be missing)");
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (profiles) {
+          // Create a map of admin roles for quick lookup
+          const adminRolesMap = new Map();
+          if (adminsRes.data) {
+            (adminsRes.data as any[]).forEach((role: any) => {
+              adminRolesMap.set(role.user_id, role.role);
+            });
+          }
+
+          const fallbackUsers = profiles.map((p: any) => {
+            const role = adminRolesMap.get(p.id) || "user";
+            const isAdmin = role === "admin";
+            return {
+              id: p.id,
+              username: p.username,
+              full_name: p.full_name,
+              avatar_url: p.avatar_url,
+              created_at: p.created_at,
+              email: "", // Cannot access email directly via client
+              is_admin: isAdmin,
+              role: role
+            };
+          });
+          setAllUsers(fallbackUsers as User[]);
+        }
+      }
+
       // Ads are fetched separately for realtime support
       await fetchAdvertisements();
       if (adminsRes.data) {
@@ -307,6 +370,7 @@ const Admin = () => {
       if (contactRes.data) {
         setContactRequests(contactRes.data as ContactRequest[]);
       }
+
       // حساب عدد التفاعلات لكل مطعم
       if (interactionsRes.data) {
         const counts: Record<string, number> = {};
@@ -630,7 +694,6 @@ const Admin = () => {
           cuisine: restaurantCuisines[0], // Primary cuisine for backward compatibility
           cuisines: restaurantCuisines,
           phone: restaurantPhone || null,
-          website: restaurantWebsite || null,
           image_url: restaurantImage || restaurantImageUrlInput || null,
           created_by: user?.id,
         })
@@ -680,7 +743,6 @@ const Admin = () => {
       setRestaurantNameEn("");
       setRestaurantCuisines([]);
       setRestaurantPhone("");
-      setRestaurantWebsite("");
       setRestaurantImage("");
       setRestaurantImageUrlInput("");
       setImageFile(null);
@@ -983,7 +1045,6 @@ const Admin = () => {
     setEditRestaurantNameEn(restaurant.name_en || "");
     setEditRestaurantCuisines(restaurant.cuisines && restaurant.cuisines.length > 0 ? restaurant.cuisines : [restaurant.cuisine]);
     setEditRestaurantPhone(restaurant.phone || "");
-    setEditRestaurantWebsite(restaurant.website || "");
     setEditRestaurantImage(restaurant.image_url || "");
 
     // Fetch existing delivery apps for this restaurant
@@ -1128,7 +1189,6 @@ const Admin = () => {
           cuisine: editRestaurantCuisines[0], // Primary cuisine for backward compatibility
           cuisines: editRestaurantCuisines,
           phone: editRestaurantPhone || null,
-          website: editRestaurantWebsite || null,
           image_url: editRestaurantImage || null,
         })
         .eq("id", editingRestaurant.id);
@@ -1294,6 +1354,33 @@ const Admin = () => {
     }
   };
 
+  const handleDeleteUser = async (userId: string) => {
+    if (!window.confirm("هل أنت متأكد من رغبتك في حذف هذا المستخدم؟ هذا الإجراء لا يمكن التراجع عنه.")) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase.rpc('delete_user_by_admin' as any, { target_user_id: userId });
+
+      if (error) throw error;
+
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف المستخدم وجميع بياناته بنجاح",
+      });
+
+      // Update local state to reflect change immediately
+      setAllUsers(prev => prev.filter(u => u.id !== userId));
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      toast({
+        title: "خطأ",
+        description: error.message || "حدث خطأ أثناء حذف المستخدم",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleUpdateContactStatus = async (requestId: string, newStatus: ContactRequest["status"]) => {
     try {
       const { error } = await supabase
@@ -1368,7 +1455,7 @@ const Admin = () => {
           </div>
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4" />
-            <span>{adminUsers.length} مشرف</span>
+            <span>{allUsers.length} مستخدم</span>
           </div>
           <div className="flex items-center gap-2">
             <MessageCircle className="w-4 h-4" />
@@ -1379,13 +1466,17 @@ const Admin = () => {
 
       <div className="p-4">
         <Tabs defaultValue="restaurants" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-6">
+          <TabsList className="grid w-full grid-cols-6 mb-6">
             <TabsTrigger value="legal_pages" className="text-sm">
               الصفحات القانونية
               <FileText className="w-4 h-4 mr-2 ml-2" />
             </TabsTrigger>
             <TabsTrigger value="admins" className="text-sm">
               المشرفين
+              <Users className="w-4 h-4 mr-2 ml-2" />
+            </TabsTrigger>
+            <TabsTrigger value="users" className="text-sm">
+              المستخدمين
               <Users className="w-4 h-4 mr-2 ml-2" />
             </TabsTrigger>
             <TabsTrigger value="contacts" className="text-sm">
@@ -1401,6 +1492,101 @@ const Admin = () => {
               <Store className="w-4 h-4 mr-2 ml-2" />
             </TabsTrigger>
           </TabsList>
+
+
+          {/* Users Tab */}
+          <TabsContent value="users" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2 justify-center flex-row-reverse">
+                  <Users className="w-5 h-5 text-primary" />
+                  كل المستخدمين المسجلين ({filteredUsers.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex mb-4 justify-end">
+                  <div className="w-full max-w-sm">
+                    <Input
+                      placeholder="بحث بالايميل أو الاسم..."
+                      className="text-right"
+                      value={userSearchQuery}
+                      onChange={(e) => setUserSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-md border overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-right border-collapse">
+                      <thead className="bg-[#f0f9ff]/50 border-b-2 border-primary/10">
+                        <tr>
+                          <th className="p-4 font-bold text-primary w-[30%]">المستخدم</th>
+                          <th className="p-4 font-bold text-primary w-[30%]">البريد الإلكتروني</th>
+                          <th className="p-4 font-bold text-primary w-[15%]">الدور</th>
+                          <th className="p-4 font-bold text-primary w-[15%]">تاريخ التسجيل</th>
+                          <th className="p-4 font-bold text-primary w-[10%] text-center">إجراءات</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {filteredUsers.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="p-12 text-center text-muted-foreground bg-gray-50/50">
+                              <div className="flex flex-col items-center justify-center gap-3">
+                                <Users className="w-10 h-10 text-gray-300" />
+                                <p>لا يوجد مستخدمين مسجلين</p>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredUsers.map((u) => (
+                            <tr key={u.id} className="hover:bg-muted/30 transition-all duration-200 group">
+                              <td className="p-4">
+                                <div className="flex items-center gap-3 justify-end flex-row-reverse">
+                                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-primary font-bold overflow-hidden shadow-sm border border-white ring-1 ring-gray-100">
+                                    {u.avatar_url ? (
+                                      <img src={u.avatar_url} alt={u.username} className="w-full h-full object-cover" />
+                                    ) : (
+                                      u.username?.charAt(0).toUpperCase() || "U"
+                                    )}
+                                  </div>
+                                  <div className="flex flex-col items-start text-right">
+                                    <span className="font-bold text-gray-900 line-clamp-1">{u.username || "بدون اسم"}</span>
+                                    {u.full_name && <span className="text-xs text-muted-foreground line-clamp-1">{u.full_name}</span>}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-4 dir-ltr font-mono text-xs text-gray-600">{u.email}</td>
+                              <td className="p-4">
+                                {u.is_admin ? (
+                                  <Badge className="bg-primary/90 hover:bg-primary shadow-sm">مشرف</Badge>
+                                ) : (
+                                  <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">مستخدم</Badge>
+                                )}
+                              </td>
+                              <td className="p-4 text-gray-500 font-medium text-xs">
+                                {new Date(u.created_at).toLocaleDateString("en-US")}
+                              </td>
+                              <td className="p-4 text-center">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                  onClick={() => handleDeleteUser(u.id)}
+                                  title="حذف المستخدم"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Contact Requests Tab */}
           <TabsContent value="contacts" className="space-y-6">
@@ -2470,14 +2656,14 @@ const Admin = () => {
                           </div>
                           <div>
                             <h3 className="font-semibold">
-                              {admin.profile?.full_name || admin.profile?.username || "مستخدم"}
+                              {admin.profiles?.full_name || admin.profiles?.username || "مستخدم"}
                             </h3>
                             <div className="flex items-center gap-2">
                               <Badge variant={admin.role === "admin" ? "default" : "secondary"}>
                                 {admin.role === "admin" ? "مشرف" : "مدير"}
                               </Badge>
                               <span className="text-xs text-muted-foreground">
-                                {admin.profile?.username}
+                                {admin.profiles?.username}
                               </span>
                             </div>
                           </div>
@@ -2573,17 +2759,7 @@ const Admin = () => {
                 className="text-left"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-website" className="text-right block">الموقع الإلكتروني</Label>
-              <Input
-                id="edit-website"
-                value={editRestaurantWebsite}
-                onChange={(e) => setEditRestaurantWebsite(e.target.value)}
-                placeholder="https://..."
-                dir="ltr"
-                className="text-left"
-              />
-            </div>
+
             {/* Image Upload Section */}
             <div className="space-y-2">
               <Label className="text-right block">صورة المطعم</Label>

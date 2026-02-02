@@ -325,19 +325,19 @@ const Statistics = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-lg">المطاعم حسب الفئة</CardTitle>
+                      <CardTitle className="text-lg">الإحصائيات</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="h-[200px]">
+                      <div className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
+                          <PieChart margin={{ top: 20, right: 40, left: 40, bottom: 20 }}>
                             <Pie
                               data={stats.restaurantsByCategory}
                               cx="50%"
                               cy="50%"
-                              labelLine={false}
+                              labelLine={true}
                               label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                              outerRadius={80}
+                              outerRadius={45}
                               fill="#8884d8"
                               dataKey="value"
                             >
@@ -389,7 +389,7 @@ const Statistics = () => {
                     <CardTitle className="text-lg">نشاط الحفظ اليومي</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-[200px]">
+                    <div className="h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={stats.dailyActivity}>
                           <CartesianGrid strokeDasharray="3 3" />
@@ -442,16 +442,16 @@ const Statistics = () => {
                     <CardTitle className="text-lg">الإعلانات حسب الموقع</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-[200px]">
+                    <div className="h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
+                        <PieChart margin={{ top: 20, right: 40, left: 40, bottom: 20 }}>
                           <Pie
                             data={stats.adsByPlacement}
                             cx="50%"
                             cy="50%"
-                            labelLine={false}
+                            labelLine={true}
                             label={({ name, value }) => `${name} (${value})`}
-                            outerRadius={80}
+                            outerRadius={45}
                             fill="#8884d8"
                             dataKey="value"
                           >
