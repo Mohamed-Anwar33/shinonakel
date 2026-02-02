@@ -605,7 +605,15 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_user_id_fkey_profiles"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -615,6 +623,23 @@ export type Database = {
       can_view_profile: { Args: { target_id: string }; Returns: boolean }
       can_view_restaurants: { Args: { owner_id: string }; Returns: boolean }
       deactivate_expired_ads: { Args: never; Returns: undefined }
+      delete_user_by_admin: {
+        Args: { target_user_id: string }
+        Returns: undefined
+      }
+      get_all_profiles_with_email: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          is_admin: boolean
+          role: string
+          username: string
+        }[]
+      }
       get_restaurant_avg_rating: {
         Args: { restaurant_uuid: string }
         Returns: number
