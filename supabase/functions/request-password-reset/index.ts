@@ -115,13 +115,13 @@ serve(async (req: Request) => {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
             .btn-reset:hover {
-              background: linear-gradient(135deg, #D93644 0%, #C22E3C 100%) !important;
+              background-color: #C91F1F !important;
             }
           </style>
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 20px;">
           <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); direction: rtl; text-align: right;">
-            <div style="background: linear-gradient(135deg, #EB4B59 0%, #D93644 100%); padding: 30px; text-align: center;">
+            <div style="background-color: #E02424; padding: 30px; text-align: center;">
               <h1 style="color: #ffffff; margin: 0; font-size: 28px;">شنو ناكل؟</h1>
             </div>
             <div style="padding: 30px; text-align: right;">
@@ -130,7 +130,7 @@ serve(async (req: Request) => {
                 لقد طلبت إعادة تعيين كلمة المرور لحسابك. اضغط على الزر أدناه لإنشاء كلمة مرور جديدة.
               </p>
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${resetUrl}" class="btn-reset" style="display: inline-block; background: linear-gradient(135deg, #EB4B59 0%, #D93644 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                <a href="${resetUrl}" class="btn-reset" style="display: inline-block; background-color: #E02424; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 16px;">
                   إعادة تعيين كلمة المرور
                 </a>
               </div>
