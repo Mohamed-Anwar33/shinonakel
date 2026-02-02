@@ -550,6 +550,7 @@ export type Database = {
           name: string
           notes: string | null
           rating: number | null
+          restaurant_id: string | null
           user_id: string
         }
         Insert: {
@@ -562,6 +563,7 @@ export type Database = {
           name: string
           notes?: string | null
           rating?: number | null
+          restaurant_id?: string | null
           user_id: string
         }
         Update: {
@@ -574,9 +576,17 @@ export type Database = {
           name?: string
           notes?: string | null
           rating?: number | null
+          restaurant_id?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "saved_restaurants_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "saved_restaurants_user_id_fkey"
             columns: ["user_id"]
